@@ -1,0 +1,7 @@
+.version {
+  position: absolute;
+  font-size: 8px;
+  left: calc(32px + 1.25rem + 50px);
+  top: 35px;
+  font-weight: 200;
+}
