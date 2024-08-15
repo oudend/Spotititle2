@@ -1,0 +1,115 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:3000",
+    "distDir": "../build"
+  },
+  "package": {
+    "productName": "spotititle",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "protocol": {
+        "asset": true,
+        "assetScope": ["$APPDATA/assets/**", "/assets/**"]
+      },
+      "path": {
+        "all": true
+      },
+      "window": {
+        "startDragging": true
+      },
+      "dialog": {
+        "all": true,
+        "ask": true,
+        "confirm": true,
+        "message": true,
+        "open": true,
+        "save": true
+      },
+      "fs": {
+        "all": true,
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "copyFile": true,
+        "createDir": true,
+        "removeDir": true,
+        "removeFile": true,
+        "renameFile": true,
+        "exists": true,
+        "scope": ["$APPDATA/assets/**"]
+      },
+      "all": false
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.spotititle.oudend",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": ["../public/"],
+      "shortDescription": "",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost; media-src 'self' asset: https://asset.localhost"
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "label": "Configuration",
+        "fullscreen": false,
+        "height": 1024,
+        "minWidth": 1440,
+        "minHeight": 1024,
+        "resizable": true,
+        "title": "spotititle",
+        "width": 1440,
+        "url": "/Home"
+      },
+      {
+        "label": "Subtitles",
+        "title": "Subtitles",
+        "url": "/Subtitles",
+        "maximizable": false,
+        "minimizable": false,
+        "skipTaskbar": true,
+        "closable": false,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "width": 800,
+        "height": 200,
+        "transparent": true
+      }
+    ]
+  }
+}
