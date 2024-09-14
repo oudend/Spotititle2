@@ -22,6 +22,8 @@ cached = "0.53.1"
 
 image="0.25.1"
 
+wana_kana = "3.0.0"
+
 discord-rich-presence = "0.2.4"
 
 mp4 = "0.14.0"

@@ -59,27 +59,40 @@ export default function Home() {
       else await tauriWindow.appWindow.show();
     });
 
-    listen("SP_DC_Loaded", async (event) => {
+    listen("current-song-updated", async (event) => {
       try {
-        const current_song_string = await invoke("get_current_song");
-
-        const current_song_data = JSON.parse(current_song_string as string);
-
-        console.log(current_song_data);
-
-        const song_lyrics_string = await invoke("get_song_lyrics", {
-          songId: current_song_data.item.id,
-        });
+        const current_song_data = JSON.parse(event.payload as string);
 
         setSubtitle(current_song_data.item.name);
-
-        const song_lyrics_data = JSON.parse(song_lyrics_string as string);
-
-        console.log(song_lyrics_data);
       } catch (e) {
         console.error(e);
       }
     });
+    listen("current-song-lyric-updated", async (event) => {
+      setSubtitle(event.payload as string);
+    });
+
+    // listen("SP_DC_Loaded", async (event) => {
+    //   try {
+    //     const current_song_string = await invoke("get_current_song");
+
+    //     const current_song_data = JSON.parse(current_song_string as string);
+
+    //     console.log(current_song_data);
+
+    //     const song_lyrics_string = await invoke("get_song_lyrics", {
+    //       songId: current_song_data.item.id,
+    //     });
+
+    //     setSubtitle(current_song_data.item.name);
+
+    //     const song_lyrics_data = JSON.parse(song_lyrics_string as string);
+
+    //     console.log(song_lyrics_data);
+    //   } catch (e) {
+    //     console.error(e);
+    //   }
+    // });
 
     loadSettings();
   }, []);
