@@ -4,10 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import Image, { ImageProps } from "next/image";
 import { Store } from "tauri-plugin-store-api";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
-
+import { emit, listen } from "@tauri-apps/api/event";
 import { ImageInputOptionsProps } from "@/components/ui/inputs";
-
-import eventBus from "@/lib/EventBus";
 //ImageProps
 // type BackgroundImageProps = Omit<ImageProps, "src" | "ref">;
 
@@ -87,10 +85,15 @@ const BackgroundImage = (props: BackgroundImageProps) => {
       setclassNameExtensions(classNameExtension);
     };
 
-    eventBus.on("backgroundUpdate", async (e: any) => {
-      console.log("background update????");
-      await updateBackgroundImage();
-    });
+    (async () => {
+      console.log("mounting listener");
+      const unlisten = await listen("backgroundUpdate", async (event) => {
+        // event.event is the event name (useful if you want to use a single callback fn for multiple event types)
+        // event.payload is the payload object
+        console.log("background update????");
+        await updateBackgroundImage();
+      });
+    })();
 
     updateBackgroundImage();
   }, [storeRef]);
@@ -110,6 +113,7 @@ const BackgroundImage = (props: BackgroundImageProps) => {
           <source src={src} type="video/mp4" />
         </video>
       )) || (
+        // eslint-disable-next-line jsx-a11y/alt-text
         <Image
           {...props}
           key={src}

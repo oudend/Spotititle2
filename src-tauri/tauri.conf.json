@@ -11,6 +11,7 @@
     "version": "0.1.0"
   },
   "tauri": {
+    "macOSPrivateApi": true,
     "allowlist": {
       "protocol": {
         "asset": true,
@@ -20,7 +21,9 @@
         "all": true
       },
       "window": {
-        "startDragging": true
+        "startDragging": true,
+        "show": true,
+        "hide": true
       },
       "dialog": {
         "all": true,

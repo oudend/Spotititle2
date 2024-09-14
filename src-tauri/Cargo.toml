@@ -12,9 +12,14 @@ rust-version = "1.60"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
+
 tauri-build = { version = "1.5.3", features = [] }
 
 [dependencies]
+tauri-plugin-window-state = "0.1.1"
+
+cached = "0.53.1"
+
 image="0.25.1"
 
 discord-rich-presence = "0.2.4"
@@ -34,7 +39,7 @@ tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", 
 
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.7.0", features = [ "window-start-dragging", "path-all", "protocol-asset", "fs-all", "dialog-all"] }
+tauri = { version = "1.7.0", features = [ "window-show", "window-hide", "macos-private-api", "window-start-dragging", "path-all", "protocol-asset", "fs-all", "dialog-all"] }
 
 [dependencies.tauri-plugin-sql]
 git = "https://github.com/tauri-apps/plugins-workspace"

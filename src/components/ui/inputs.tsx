@@ -91,6 +91,7 @@ interface SecretInputProps {
   placeholder: string;
   storeChange?: (id: string, value: string) => void;
   loadChange?: (id: string) => Promise<string | null>;
+  incorrect?: boolean;
 }
 
 const SecretInput: React.FC<SecretInputProps> = ({
@@ -100,6 +101,7 @@ const SecretInput: React.FC<SecretInputProps> = ({
   placeholder,
   storeChange,
   loadChange,
+  incorrect,
 }) => {
   const [value, setValue] = useState("");
 
@@ -150,7 +152,11 @@ const SecretInput: React.FC<SecretInputProps> = ({
         onChange={handleChange}
         placeholder={placeholder}
         autoComplete="current-password"
-        className="border-dashed border-t-0 border-l-0 border-r-0 border-b-2 border-red-700 bg-stone-900 h-14 w-[920px] outline-none rounded-3xl pl-4"
+        className={`${
+          incorrect
+            ? "border-dashed border-t-0 border-l-0 border-r-0 border-b-2 border-red-700"
+            : "border-none"
+        } bg-stone-900 h-14 w-[920px] outline-none rounded-3xl pl-4`}
       />
     </div>
   );
@@ -248,6 +254,42 @@ const TextInput: React.FC<TextInputProps> = ({
   );
 };
 
+interface ButtonInputProps {
+  label: string;
+  tooltip?: string;
+  id: string;
+  text: string;
+  onClick?: () => void;
+}
+
+const ButtonInput: React.FC<ButtonInputProps> = ({
+  label,
+  tooltip,
+  id,
+  text,
+  onClick,
+}) => {
+  return (
+    <div className="flex w-[100%] gap-[62px] h-20 bg-[rgba(0,0,0,0.6)] z-3 justify-center items-center">
+      <div className="w-[120px] align-middle flex items-center ml-8">
+        <Label
+          label={label}
+          htmlFor={id}
+          tooltip={tooltip}
+          className="block w-full text-left"
+        />
+      </div>
+      <button
+        id={id}
+        className="bg-stone-900 border-b-2 h-14 w-[920px] border-none outline-none rounded-3xl pl-4"
+        onClick={onClick}
+      >
+        {text}
+      </button>
+    </div>
+  );
+};
+
 interface CheckboxButtonProps {
   label: string;
   tooltip?: string;
@@ -256,6 +298,7 @@ interface CheckboxButtonProps {
   buttonText: string;
   storeChange?: (id: string, value: string) => void;
   loadChange?: (id: string) => Promise<string | null>;
+  onClick?: () => void;
 }
 
 const CheckboxButton: React.FC<CheckboxButtonProps> = ({
@@ -266,6 +309,7 @@ const CheckboxButton: React.FC<CheckboxButtonProps> = ({
   buttonText,
   storeChange,
   loadChange,
+  onClick,
 }) => {
   const [value, setValue] = useState(false);
 
@@ -340,6 +384,7 @@ const CheckboxButton: React.FC<CheckboxButtonProps> = ({
       <button
         id={buttonId}
         className="bg-stone-900 border-b-2 h-14 w-[920px] border-none outline-none rounded-3xl pl-4"
+        onClick={onClick}
       >
         {buttonText}
       </button>
@@ -1024,6 +1069,7 @@ export {
   SliderInput,
   ImageDropdownInput,
   Label,
+  ButtonInput,
 };
 
 export type { ImageInputOptionsProps };

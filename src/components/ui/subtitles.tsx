@@ -2,32 +2,22 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Image, { ImageProps } from "next/image";
-import { Store } from "tauri-plugin-store-api";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
 
-import { ImageInputOptionsProps } from "@/components/ui/inputs";
+interface SubtitleProps {
+  subtitle: string;
+  opacity: number;
+}
 
-import eventBus from "@/lib/EventBus";
-// import { window as tauriWindow } from "@tauri-apps/api";
-//ImageProps
-// type BackgroundImageProps = Omit<ImageProps, "src" | "ref">;
-
-// type BackgroundImageProps = Omit<ImageProps, "src" | "ref"> & {
-//   src: string;
-//   isVideo: boolean;
-// };
-
-const Subtitles = () => {
-  useEffect(() => {
-    const noDragSelector = "input, a, button"; // CSS selector
-    document.addEventListener("mousedown", async (e) => {
-      if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // a non-draggable element either in target or its ancestors
-      const tauriWindow = await import("@tauri-apps/api/window");
-      await tauriWindow.appWindow.startDragging();
-    });
-  }, []);
-
-  return <div>subtitles</div>;
+const Subtitles: React.FC<SubtitleProps> = ({ subtitle, opacity }) => {
+  return (
+    <div className=" cursor-default h-full w-full text-wrap bg-black bg-transparent text-center text-2xl font-medium text-white">
+      <div
+        className="absolute top-0 h-full w-full bg-black"
+        style={{ opacity: opacity }}
+      ></div>
+      <article className="relative z-10 h-full text-white">{subtitle}</article>
+    </div>
+  );
 };
 
 export { Subtitles };

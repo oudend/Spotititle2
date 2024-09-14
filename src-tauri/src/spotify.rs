@@ -2,45 +2,6 @@ use serde_json::Value;
 use flate2::read::GzDecoder;
 use std::io::Read;
 
-// pub enum Result {
-//     Success,
-//     Fail
-// }
-
-#[derive(Debug)]
-enum SyncType {
-    LineSynced,
-    Unsynced,
-    None
-}
-
-#[derive(Debug)]
-pub struct CurrentSongData {
-    pub name: String,
-    pub id: String,
-    pub album_image_link: String,
-    pub progress: u64
-}
-
-#[derive(Debug)]
-pub struct LyricsTimeData {
-    elapsed_time: u64,
-    line_lyric: String,
-}
-
-#[derive(Debug)]
-pub struct LyricsData {
-    sync_type: SyncType,
-    lyrics_time_data: Vec<LyricsTimeData>
-}
-
-pub struct LyricData
-{
-    time_left: u64,
-    line_lyric: String,
-    closest_lyrics_time_data: LyricsTimeData
-}
-
 #[derive(Debug)]
 pub struct Spotify {
     access_token: String,
@@ -106,7 +67,7 @@ impl Spotify {
         Err("Failed to refresh access token".into())
     }
 
-    pub async fn get_currently_playing(&self) -> std::result::Result<CurrentSongData, String> {
+    pub async fn get_currently_playing(&self) -> std::result::Result<Value, String> {
         let client = reqwest::Client::new();
         let response = client
             .get("https://api.spotify.com/v1/me/player/currently-playing")
@@ -123,26 +84,28 @@ impl Spotify {
                     }
                 };
 
-                let progress_ms = data["progress_ms"].as_u64().unwrap_or(0);
+                // let progress_ms = data["progress_ms"].as_u64().unwrap_or(0);
                 let item = &data["item"];
 
                 if item.is_null() {
                     return Err("No item currently playing".into());
                 }
 
-                let id = item["id"].as_str().unwrap_or("").to_string();
-                let name = item["name"].as_str().unwrap_or("").to_string();
-                let album_image_link = item["album"]["images"][0]["url"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
+                return Ok(data);
 
-                return Ok(CurrentSongData {
-                    name,
-                    id,
-                    album_image_link,
-                    progress: progress_ms
-                });
+                // let id = item["id"].as_str().unwrap_or("").to_string();
+                // let name = item["name"].as_str().unwrap_or("").to_string();
+                // let album_image_link = item["album"]["images"][0]["url"]
+                //     .as_str()
+                //     .unwrap_or("")
+                //     .to_string();
+
+                // return Ok(CurrentSongData {
+                //     name,
+                //     id,
+                //     album_image_link,
+                //     progress: progress_ms
+                // });
             }
         }
         Err("Failed to get currently playing song".into())
@@ -188,7 +151,7 @@ impl Spotify {
                 response_text = String::from_utf8(response_bytes.to_vec()).unwrap();
             }
 
-            println!("Response Text: {}", response_text);
+            // println!("Response Text: {}", response_text);
 
             return match serde_json::from_str::<Value>(&response_text) {
                 Ok(json_value) => Ok(json_value),

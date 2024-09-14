@@ -42,14 +42,15 @@ const Sidebar: React.FC = () => {
   return (
     <div className="flex flex-col grow px-6 pt-5 mx-auto text-3xl whitespace-nowrap shadow-sm bg-stone-900 text-zinc-400 max-md:px-5 w-[300px] h-screen y-0 x-0 absolute shadow-xl">
       <header className="flex gap-5 font-bold">
-        <Image
+        {/* <Image
           loading="lazy"
           src="/assets/icon.png"
           alt="Spotititle logo"
           width={32}
           height={32}
           className="shrink-0 my-auto  aspect-square" //shadow-[0px_0px_10.5px_-3px_#31A365]
-        />
+        /> */}
+        <span className="w-[32px]"></span>
         <div>Spotititle</div>
         <div className="version">v 0.0.1</div>
       </header>
