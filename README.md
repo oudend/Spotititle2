@@ -48,7 +48,7 @@ cargo install tauri-cli
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/spotititle.git
+   git clone https://github.com/oudend/Spotititle2.git
    ```
 
 2. Navigate to the project directory:
