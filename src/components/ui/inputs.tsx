@@ -561,7 +561,7 @@ const SliderInput: React.FC<SliderInputProps> = ({
         if (storeChange !== undefined) {
           storeChange(id, savedValue);
         }
-        setValue(parseInt(savedValue));
+        setValue(Math.min(max, Math.max(min, parseInt(savedValue))));
       } else {
         if (storeChange !== undefined) {
           storeChange(id, "0");
@@ -661,6 +661,7 @@ const SliderInput: React.FC<SliderInputProps> = ({
           className="w-[820px] border-none outline-none ring-0"
           onValueChange={handleChangeSlider}
           value={[value]}
+          min={min}
           max={max}
           step={step}
         />

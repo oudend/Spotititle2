@@ -3,13 +3,17 @@
 
 // use std::path::{Path, PathBuf};
 use once_cell::sync::OnceCell;
-use serde_json::Value;
+use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use tauri::{Manager, WindowEvent};
 use std::path::Path;
 use tokio::sync::mpsc;
 use std::time::Duration;
-use wana_kana::ConvertJapanese;
+
+// use wana_kana::ConvertJapanese;
+// use pinyin::{ToPinyin, ToPinyinMulti};
+// use cjk::{is_japanese, is_korean, is_simplified_chinese, is_traditional_chinese};
+
 
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
@@ -87,6 +91,15 @@ fn create_thumbnail(src: &str, dest: &str, width: u16, height: u16) -> Result<()
     }
 }
 
+fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_index: i16) {
+    let json_data = json!({
+        "text": lyric_text,
+        "index": current_lyric_index
+    });
+
+    app_handle.emit_all("current-song-lyric-updated", json_data.to_string()).unwrap();
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>  {
     let spotify_instance = spotify::Spotify::new();
@@ -124,23 +137,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             if last_song_id != song_id {
                                 last_song_id = song_id.clone();
                                 
-                                println!("song changed: {}", song_id);
+                                // println!("song changed: {}", song_id);
 
                                 app_handle.emit_all("current-song-updated", current_song.to_string()).unwrap();
 
                                 song_lyrics = match spotify.get_lyrics(&song_id).await {
                                     Ok(lyrics) => {
-                                        println!("Currently playing song's lyrics: {:?}", lyrics["lyrics"]["lines"]);
+                                        // println!("Currently playing song's lyrics: {:?}", lyrics["lyrics"]["lines"]);
+
+                                        app_handle.emit_all("current-song-lyrics", lyrics.to_string()).unwrap();
+
                                         if let Some(lines) = lyrics["lyrics"]["lines"].as_array() {
-                                            println!("Currently playing song's lyrics: {:?}", song_lyrics);
+                                            // println!("Currently playing song's lyrics: {:?}", song_lyrics);
+
                                             lines.clone()
                                         } else {
-                                            println!("Lyrics or lines are missing.");
+                                            // println!("Lyrics or lines are missing.");
                                             Vec::new()
                                         }
                                     },
                                     Err(e) => {
-                                        println!("Could not get song lyrics: {:?}", e);
+                                        // println!("Could not get song lyrics: {:?}", e);
                                         Vec::new()
                                     }
                                 };
@@ -158,8 +175,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                         println!("finished: {}, {}", start_time, progress);
                                         if current_lyric_index != -1 {
                                             let lyric_text = song_lyrics[current_lyric_index as usize]["words"].as_str().unwrap_or("").to_string();
-                                            println!("{}", lyric_text);
-                                            app_handle.emit_all("current-song-lyric-updated", lyric_text).unwrap();
+                                            // println!("{}", lyric_text);
+                                            send_lyric(&app_handle, lyric_text, current_lyric_index);
+                                            // app_handle.emit_all("current-song-lyric-updated", lyric_text).unwrap();
                                         }
 
                                         break;
@@ -178,9 +196,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             if let Some(next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) {
                                 let next_start_time = next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
 
-                                let next_lyric_text = next_lyric["words"].as_str().unwrap_or("").to_string();
+                                // let next_lyric_text = next_lyric["words"].as_str().unwrap_or("").to_romaji();
+                                let next_lyric_text = next_lyric["words"].as_str().unwrap_or("");
     
-                                println!("{} - {}, {}", next_start_time, progress, current_lyric_index);
+                                // println!("{} - {}, {}", next_start_time, progress, current_lyric_index);
 
                                 if let Some(current_lyric) = song_lyrics.get(current_lyric_index as usize) { //? check if progress was reversed by user
                                     let current_start_time = current_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
@@ -196,11 +215,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                     if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) { //? check if the program skipped by mistake 
                                         let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
 
-                                        println!("next_next_start_time: {}", next_next_start_time);
+                                        // println!("next_next_start_time: {}", next_next_start_time);
 
                                         if progress < next_next_start_time {
-                                            println!("{}", next_lyric_text);
-                                            app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
+                                            // println!("{}", next_lyric_text);
+                                            // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
+                                            send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index);
                                         }
                                     }
 
@@ -218,13 +238,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 progress += time_left;
 
-                                println!("waiting for: {} ms until next line", time_left);
+                                // println!("waiting for: {} ms until next line", time_left);
 
                                 tokio::time::sleep(Duration::from_millis(time_left)).await;
 
-                                println!("{}", next_lyric_text);
+                                // println!("{}", next_lyric_text);
 
-                                app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
+                                send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index);
+
+                                // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
 
                                 current_lyric_index += 1;
                             } else {

@@ -14,6 +14,7 @@ import { emit, listen } from "@tauri-apps/api/event";
 
 export default function Home() {
   const [opacity, setOpacity] = useState(1.0);
+  const [fontSize, setFontSize] = useState(10.0);
   const [subtitle, setSubtitle] = useState("subtitles");
 
   const storeRef = useRef(new Store(".settings.dat"));
@@ -22,9 +23,11 @@ export default function Home() {
     const loadSettings = async () => {
       const tauriWindow = await import("@tauri-apps/api/window");
 
-      // const window = tauriWindow.
-
       const store = storeRef.current;
+
+      const fontSize = await store.get("fontSize");
+
+      setFontSize(Math.min(Math.max(10, fontSize as number), 100));
 
       const opacity = await store.get("backgroundOpacity");
 
@@ -43,6 +46,11 @@ export default function Home() {
       if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // a non-draggable element either in target or its ancestors
       const tauriWindow = await import("@tauri-apps/api/window");
       await tauriWindow.appWindow.startDragging();
+    });
+
+    listen("fontSize", (event) => {
+      //? validation required
+      setFontSize(Math.min(Math.max(10, event.payload as number), 100));
     });
 
     listen("backgroundOpacity", (event) => {
@@ -69,36 +77,19 @@ export default function Home() {
       }
     });
     listen("current-song-lyric-updated", async (event) => {
-      setSubtitle(event.payload as string);
+      const current_lyric_data = JSON.parse(event.payload as string);
+
+      setSubtitle(current_lyric_data.text as string);
     });
-
-    // listen("SP_DC_Loaded", async (event) => {
-    //   try {
-    //     const current_song_string = await invoke("get_current_song");
-
-    //     const current_song_data = JSON.parse(current_song_string as string);
-
-    //     console.log(current_song_data);
-
-    //     const song_lyrics_string = await invoke("get_song_lyrics", {
-    //       songId: current_song_data.item.id,
-    //     });
-
-    //     setSubtitle(current_song_data.item.name);
-
-    //     const song_lyrics_data = JSON.parse(song_lyrics_string as string);
-
-    //     console.log(song_lyrics_data);
-    //   } catch (e) {
-    //     console.error(e);
-    //   }
-    // });
 
     loadSettings();
   }, []);
 
   return (
-    <div className="overflow-hidden w-full h-full">
+    <div
+      className="overflow-hidden w-full h-full"
+      style={{ fontSize: `${fontSize}px` }}
+    >
       <Subtitles subtitle={subtitle} opacity={opacity} />
     </div>
   );

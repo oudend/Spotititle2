@@ -24,6 +24,10 @@ image="0.25.1"
 
 wana_kana = "3.0.0"
 
+pinyin = "0.10"
+
+cjk="0.2.4"
+
 discord-rich-presence = "0.2.4"
 
 mp4 = "0.14.0"

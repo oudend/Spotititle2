@@ -10,7 +10,7 @@ interface SubtitleProps {
 
 const Subtitles: React.FC<SubtitleProps> = ({ subtitle, opacity }) => {
   return (
-    <div className=" cursor-default h-full w-full text-wrap bg-black bg-transparent text-center text-2xl font-medium text-white">
+    <div className=" cursor-default h-full w-full text-wrap bg-black bg-transparent text-center font-medium text-white">
       <div
         className="absolute top-0 h-full w-full bg-black"
         style={{ opacity: opacity }}

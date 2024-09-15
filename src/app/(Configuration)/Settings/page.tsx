@@ -274,14 +274,14 @@ export default function Home() {
   }, []);
 
   const storeChange = async (id: string, value: string) => {
-    console.log(id, value, "storechange");
+    // console.log(id, value, "storechange");
     await store.set(id, value);
     await store.save();
   };
 
   const loadChange = async (id: string): Promise<string | null> => {
     const value = await store.get(id);
-    console.log(id, value, "storeget");
+    // console.log(id, value, "storeget");
     return await store.get(id);
   };
 
@@ -331,7 +331,7 @@ export default function Home() {
           label="Background Opacity"
           tooltip="Opacity of the subtitle window background"
           id="backgroundOpacity"
-          min={10}
+          min={0}
           max={100}
           defaultValue={100}
           step={1}
@@ -345,11 +345,14 @@ export default function Home() {
           label="Font Size"
           tooltip="Font Size"
           id="fontSize"
-          min={0}
+          min={10}
           max={100}
           defaultValue={10}
           step={1}
-          storeChange={storeChange}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit(id, value);
+          }}
           loadChange={loadChange}
         />
         <SliderInput
@@ -364,11 +367,11 @@ export default function Home() {
           loadChange={loadChange}
         />
         <SliderInput
-          label="Idle Update Delay"
-          tooltip="Idle Update Delay"
-          id="idleUpdateDelay"
-          min={0}
-          max={1000}
+          label="Update Interval"
+          tooltip="Update Interval"
+          id="UpdateInterval"
+          min={500}
+          max={10000}
           defaultValue={100}
           step={1}
           storeChange={storeChange}
