@@ -368,7 +368,7 @@ export default function Home() {
         />
         <SliderInput
           label="Update Interval"
-          tooltip="Update Interval"
+          tooltip="Determines how often the lyric progress will be synced, too often updates might lead to rate limiting imposed by spotify."
           id="updateInterval"
           min={500}
           max={10000}
@@ -385,13 +385,19 @@ export default function Home() {
         />
         <SliderInput
           label="Subtitle Offset"
-          tooltip="Subtitle Offset"
+          tooltip="Offsets the time for the lyrics to display in milliseconds, this can help if the lyrics is out of sync."
           id="subtitleOffset"
-          min={0}
-          max={1000}
+          min={-10000}
+          max={10000}
           defaultValue={0}
-          step={1}
-          storeChange={storeChange}
+          step={100}
+          storeChange={async (id: string, value: string) => {
+            await invoke("set_subtitle_offset", {
+              newOffset: parseInt(value),
+            });
+            await storeChange(id, value);
+            emit(id, value);
+          }}
           loadChange={loadChange}
         />
         <div className="flex w-[100%] gap-[62px] h-20 bg-[rgba(0,0,0,0.6)] z-3 justify-center items-center">

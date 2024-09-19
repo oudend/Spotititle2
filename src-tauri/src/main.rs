@@ -106,6 +106,7 @@ fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_i
 
 lazy_static! {
     static ref UPDATE_INTERVAL: Mutex<u64> = Mutex::new(1000); // Default value 1000ms
+    static ref SUBTITLE_OFFSET: Mutex<i64> = Mutex::new(0); // Default value 1000ms
 }
 
 #[tauri::command]
@@ -113,7 +114,15 @@ async fn set_update_interval(new_interval: u64) {
     let mut interval = UPDATE_INTERVAL.lock().await; // Await the lock
     *interval = new_interval;
 
-    println!("set_update_interval: {}", interval);
+    // println!("set_update_interval: {}", interval);
+}
+
+#[tauri::command]
+async fn set_subtitle_offset(new_offset: i64) {
+    let mut offset = SUBTITLE_OFFSET.lock().await; // Await the lock
+    *offset = new_offset;
+
+    // println!("set_update_interval: {}", offset);
 }
 
 #[tokio::main]
@@ -138,15 +147,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         let stores = app.state::<StoreCollection<Wry>>();
         let path = PathBuf::from(".settings.dat");
 
-        let app_handle_clone = app_handle.clone(); // Clone the handle to avoid borrowing issues
+        // Define a helper function to get values from the store
+        fn get_store_value(
+            app_handle: tauri::AppHandle<Wry>,
+            stores: tauri::State<'_,StoreCollection<Wry>>,
+            path: PathBuf,
+            key: &str,
+        ) -> Result<serde_json::Value, tauri_plugin_store::Error> {
+            with_store(app_handle, stores, path, |store| {
+                match store.get(key) {
+                    Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
+                    None => Err(tauri_plugin_store::Error::NotFound(PathBuf::from(key))),
+                }
+            })
+        }
+
+        // let app_handle_clone = app_handle.clone(); // Clone the handle to avoid borrowing issues
+
+
+        // Get the "updateInterval" from the store
+        let update_interval_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "updateInterval");
+
+        // Get the "subtitleOffset" from the store
+        let subtitle_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffset");
 
         // Use the cloned handle in with_store
-        let update_interval_result = with_store(app_handle_clone, stores, path.clone(), |store| {
-            match store.get("updateInterval") {
-                Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
-                None => Err(tauri_plugin_store::Error::NotFound(path))
-            }
-        });
+        // let update_interval_result = with_store(app_handle_clone, stores, path.clone(), |store| {
+        //     match store.get("updateInterval") {
+        //         Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
+        //         None => Err(tauri_plugin_store::Error::NotFound(path))
+        //     }
+        // });
+
+        // // Use the cloned handle in with_store
+        // let subtitle_offset_result = with_store(app_handle_clone, stores, path.clone(), |store| {
+        //     match store.get("subtitleOffset") {
+        //         Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
+        //         None => Err(tauri_plugin_store::Error::NotFound(path))
+        //     }
+        // });
 
         // println!("update_interval_result: {}", update_interval_result.unwrap().clone());
         
@@ -168,6 +207,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             Ok(u64_value) => {
                                 println!("stored update interval: {:?}", u64_value);
                                 *interval = u64_value; // Update the mutable variable
+                            }
+                            Err(e) => {
+                                println!("Stored update interval is not a valid u64. {}", e);
+                            }
+                        }
+                        // if Ok(u64_value) = str_value.parse::<u64>() {
+                        //     println!("stored update interval: {:?}", u64_value);
+                        //     *interval = u64_value; // Update the mutable variable
+                        // }
+                    } else {
+                        println!("Stored update interval is not a valid str.");
+                    }
+                }
+                Err(e) => {
+                    // Handle the error case
+                    println!("Error retrieving update interval: {:?}", e);
+                }
+            }
+            match subtitle_offset_result {
+                Ok(stored_subtitle_offset) => {
+                    // println!("stored_update_interval: {}", stored_subtitle_offset);
+
+                    // Assuming UPDATE_INTERVAL is a Mutex<u64>
+                    let mut offset = SUBTITLE_OFFSET.lock().await; // Await the lock
+                    if let Some(str_value) = stored_subtitle_offset.as_str() {
+                        match str_value.parse::<i64>() {
+                            Ok(i64_value) => {
+                                println!("stored subtitle offset: {:?}", i64_value);
+                                *offset = i64_value; // Update the mutable variable
                             }
                             Err(e) => {
                                 println!("Stored update interval is not a valid u64. {}", e);
@@ -258,9 +326,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                         let update_interval = *UPDATE_INTERVAL.lock().await;
 
+                        let subtitle_offset = *SUBTITLE_OFFSET.lock().await;
+
                         let mut total_time_spent = 0;
 
                         loop {
+                            // let offset_progress = progress + subtitle_offset;
+
+                            let offset_progress = if subtitle_offset < 0 {
+                                progress.saturating_sub((-subtitle_offset) as u64)
+                            } else {
+                                progress.saturating_add(subtitle_offset as u64)
+                            };
+
                             if let Some(next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) {
                                 let next_start_time = next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
 
@@ -271,13 +349,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 if let Some(current_lyric) = song_lyrics.get(current_lyric_index as usize) { //? check if progress was reversed by user
                                     let current_start_time = current_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
-                                    if progress < current_start_time {
+                                    if offset_progress < current_start_time {
                                         current_lyric_index -= 1;
                                         continue;
                                     }
                                 }
 
-                                if progress > next_start_time { //? check if progress was increased by user and prevent possible misses
+                                if offset_progress > next_start_time { //? check if progress was increased by user and prevent possible misses
                                     current_lyric_index += 1;
 
                                     if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) { //? check if the program skipped by mistake 
@@ -285,7 +363,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                         // println!("next_next_start_time: {}", next_next_start_time);
 
-                                        if progress < next_next_start_time {
+                                        if offset_progress < next_next_start_time {
                                             // println!("{}", next_lyric_text);
                                             // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
                                             send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index);
@@ -295,7 +373,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                     continue;
                                 }
 
-                                let time_left = next_start_time - progress;
+                                let time_left = next_start_time - offset_progress;
     
                                 if total_time_spent + time_left > update_interval {
                                     break;
@@ -335,7 +413,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         })
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics, set_update_interval])
+        .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics, set_update_interval, set_subtitle_offset])
         .on_window_event(|e| {
             if let WindowEvent::Resized(_) = e.event() {
                 std::thread::sleep(std::time::Duration::from_nanos(1));
