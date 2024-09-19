@@ -30,6 +30,8 @@ cjk="0.2.4"
 
 discord-rich-presence = "0.2.4"
 
+lazy_static = "1.5.0"
+
 mp4 = "0.14.0"
 
 gif = "0.13.1"

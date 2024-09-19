@@ -286,9 +286,9 @@ export default function Home() {
   };
 
   return (
-    <div className="overflow-hidden">
+    <div className=" h-screen overflow-y-scroll overflow-x-hidden scrollbar-hide">
       <Sidebar></Sidebar>
-      <main className="flex text-xl text-zinc-400 min-h-screen flex-col items-center pl-[300px] overflow-visible">
+      <main className="flex text-xl text-zinc-400 min-h-screen flex-col items-center pl-[300px] w-full">
         <div className="flex w-[100%] gap-[62px] h-20 bg-[rgba(0,0,0,0.6)] z-3 justify-center items-center">
           <Label
             htmlFor=""
@@ -369,12 +369,18 @@ export default function Home() {
         <SliderInput
           label="Update Interval"
           tooltip="Update Interval"
-          id="UpdateInterval"
+          id="updateInterval"
           min={500}
           max={10000}
           defaultValue={100}
           step={1}
-          storeChange={storeChange}
+          storeChange={async (id: string, value: string) => {
+            await invoke("set_update_interval", {
+              newInterval: parseInt(value),
+            });
+            await storeChange(id, value);
+            emit(id, value);
+          }}
           loadChange={loadChange}
         />
         <SliderInput

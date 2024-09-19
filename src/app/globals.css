@@ -76,6 +76,7 @@ input::-webkit-inner-spin-button {
 /* For Webkit-based browsers (Chrome, Safari and Opera) */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+  width: 0px;
 }
 
 /* For IE, Edge and Firefox */

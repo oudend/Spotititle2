@@ -97,6 +97,7 @@ dependencies = [
  "flate2",
  "gif",
  "image 0.25.1",
+ "lazy_static",
  "mp4",
  "once_cell",
  "pinyin",

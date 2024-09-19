@@ -5,10 +5,14 @@
 use once_cell::sync::OnceCell;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
+use lazy_static::lazy_static;
 use tauri::{Manager, WindowEvent};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 use std::time::Duration;
+// use tauri_plugin_store::StoreBuilder;
+use tauri::Wry;
+use tauri_plugin_store::{with_store, StoreCollection};
 
 // use wana_kana::ConvertJapanese;
 // use pinyin::{ToPinyin, ToPinyinMulti};
@@ -100,31 +104,93 @@ fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_i
     app_handle.emit_all("current-song-lyric-updated", json_data.to_string()).unwrap();
 }
 
+lazy_static! {
+    static ref UPDATE_INTERVAL: Mutex<u64> = Mutex::new(1000); // Default value 1000ms
+}
+
+#[tauri::command]
+async fn set_update_interval(new_interval: u64) {
+    let mut interval = UPDATE_INTERVAL.lock().await; // Await the lock
+    *interval = new_interval;
+
+    println!("set_update_interval: {}", interval);
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>  {
-    let spotify_instance = spotify::Spotify::new();
-    SPOTIFY.set(Mutex::new(spotify_instance)).unwrap();
-
+    
     tauri::Builder::default()
-        .setup(|app| {
-            let app_handle = app.handle();
-            
-            let mut last_song_id: String = String::new();
+    .setup(|app| {
+        let app_handle = app.handle();
+        
+        let mut last_song_id: String = String::new();
+        
+        let mut song_lyrics: Vec<Value> = Vec::new();  // Storing the lyrics as a vector
+        
+        let mut current_lyric_index: i16 = -1;
+        
+        let mut progress: u64 = 0;
+        
+        let spotify_instance = spotify::Spotify::new();
+        SPOTIFY.set(Mutex::new(spotify_instance)).unwrap();
+        // const UPDATE_INTERVAL: u64 = 1000;
 
-            let mut song_lyrics: Vec<Value> = Vec::new();  // Storing the lyrics as a vector
+        let stores = app.state::<StoreCollection<Wry>>();
+        let path = PathBuf::from(".settings.dat");
 
-            let mut current_lyric_index: i16 = -1;
+        let app_handle_clone = app_handle.clone(); // Clone the handle to avoid borrowing issues
 
-            let mut progress: u64 = 0;
+        // Use the cloned handle in with_store
+        let update_interval_result = with_store(app_handle_clone, stores, path.clone(), |store| {
+            match store.get("updateInterval") {
+                Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
+                None => Err(tauri_plugin_store::Error::NotFound(path))
+            }
+        });
 
-            const UPDATE_INTERVAL: u64 = 1000;
+        // println!("update_interval_result: {}", update_interval_result.unwrap().clone());
+        
+        // Spawn an asynchronous task
+        tauri::async_runtime::spawn(async move {
+            // Call the status_stream_process which contains the infinite loop
 
-            // Spawn an asynchronous task
-            tauri::async_runtime::spawn(async move {
-                // Call the status_stream_process which contains the infinite loop
-                loop {
-                    if let Some(spotify) = SPOTIFY.get() {
-                        let spotify = spotify.lock().await;
+            // println!("getting update_interval_result {}", update_interval_result.unwrap());
+
+            // Handle the result of the operation
+            match update_interval_result {
+                Ok(stored_update_interval) => {
+                    println!("stored_update_interval: {}", stored_update_interval);
+
+                    // Assuming UPDATE_INTERVAL is a Mutex<u64>
+                    let mut interval = UPDATE_INTERVAL.lock().await; // Await the lock
+                    if let Some(str_value) = stored_update_interval.as_str() {
+                        match str_value.parse::<u64>() {
+                            Ok(u64_value) => {
+                                println!("stored update interval: {:?}", u64_value);
+                                *interval = u64_value; // Update the mutable variable
+                            }
+                            Err(e) => {
+                                println!("Stored update interval is not a valid u64. {}", e);
+                            }
+                        }
+                        // if Ok(u64_value) = str_value.parse::<u64>() {
+                        //     println!("stored update interval: {:?}", u64_value);
+                        //     *interval = u64_value; // Update the mutable variable
+                        // }
+                    } else {
+                        println!("Stored update interval is not a valid str.");
+                    }
+                }
+                Err(e) => {
+                    // Handle the error case
+                    println!("Error retrieving update interval: {:?}", e);
+                }
+            }
+
+            loop {
+
+                if let Some(spotify) = SPOTIFY.get() {
+                    let spotify = spotify.lock().await;
         
                         if let Ok(current_song) = spotify.get_currently_playing().await {
                             // Emit an event for the current song
@@ -132,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                             progress = current_song["progress_ms"].as_u64().unwrap_or(0);
 
-                            println!("progress: {}", progress);
+                            // println!("progress: {}", progress);
 
                             if last_song_id != song_id {
                                 last_song_id = song_id.clone();
@@ -169,10 +235,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                     let start_time = lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
 
-                                    println!("process: {}, {}", start_time, progress);
+                                    // println!("process: {}, {}", start_time, progress);
 
                                     if progress < start_time  {
-                                        println!("finished: {}, {}", start_time, progress);
+                                        // println!("finished: {}, {}", start_time, progress);
                                         if current_lyric_index != -1 {
                                             let lyric_text = song_lyrics[current_lyric_index as usize]["words"].as_str().unwrap_or("").to_string();
                                             // println!("{}", lyric_text);
@@ -189,6 +255,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             }
 
                         }
+
+                        let update_interval = *UPDATE_INTERVAL.lock().await;
 
                         let mut total_time_spent = 0;
 
@@ -229,7 +297,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 let time_left = next_start_time - progress;
     
-                                if total_time_spent + time_left > UPDATE_INTERVAL {
+                                if total_time_spent + time_left > update_interval {
                                     break;
                                 }
 
@@ -244,19 +312,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 // println!("{}", next_lyric_text);
 
+                                
                                 send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index);
-
+                                
                                 // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
-
+                                
                                 current_lyric_index += 1;
                             } else {
                                 break;
                             }
                         }
 
+                        println!("update_interval: {}", update_interval);
             
                         // Sleep for a bit before checking again
-                        tokio::time::sleep(Duration::from_millis(UPDATE_INTERVAL - total_time_spent)).await;
+                        tokio::time::sleep(Duration::from_millis(update_interval - total_time_spent)).await;
                     }
                 }
             });
@@ -265,7 +335,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         })
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics])
+        .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics, set_update_interval])
         .on_window_event(|e| {
             if let WindowEvent::Resized(_) = e.event() {
                 std::thread::sleep(std::time::Duration::from_nanos(1));
