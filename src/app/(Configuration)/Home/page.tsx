@@ -67,7 +67,7 @@ export default function Home() {
   return (
     <div className="overflow-hidden">
       <Sidebar></Sidebar>
-      <main className="flex text-xl text-zinc-400 min-h-screen flex-col items-center pl-[300px] overflow-visible">
+      <main className="flex text-xl text-zinc-400 min-h-screen flex-col items-center pl-[300px] overflow-visible ">
         <SecretInput
           label="SP DC"
           tooltip="SP DC"

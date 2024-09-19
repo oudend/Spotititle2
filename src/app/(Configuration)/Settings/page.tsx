@@ -309,7 +309,10 @@ export default function Home() {
           tooltip="Alignment for subtitle text"
           id="textAlignment"
           options={["Left", "Center", "Right"]}
-          storeChange={storeChange}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit(id, value);
+          }}
           loadChange={loadChange}
         />
         <ButtonInput

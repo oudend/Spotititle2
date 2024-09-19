@@ -16,6 +16,9 @@ export default function Home() {
   const [opacity, setOpacity] = useState(1.0);
   const [fontSize, setFontSize] = useState(10.0);
   const [subtitle, setSubtitle] = useState("subtitles");
+  const [textAlign, setTextAlign] = useState<"left" | "right" | "center">(
+    "center"
+  );
 
   const storeRef = useRef(new Store(".settings.dat"));
 
@@ -33,6 +36,20 @@ export default function Home() {
 
       setOpacity((opacity as number) / 100);
 
+      var storedTextAlign = (await store.get("textAlignment")) as string;
+
+      storedTextAlign = storedTextAlign.toLowerCase();
+
+      if (
+        storedTextAlign === "left" ||
+        storedTextAlign === "right" ||
+        storedTextAlign === "center"
+      ) {
+        setTextAlign(storedTextAlign);
+      } else {
+        setTextAlign("center"); // Fallback to default value
+      }
+
       const hideSubtitles =
         (await store.get("hideSubtitles")) === "true" ? true : false;
 
@@ -46,6 +63,25 @@ export default function Home() {
       if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // a non-draggable element either in target or its ancestors
       const tauriWindow = await import("@tauri-apps/api/window");
       await tauriWindow.appWindow.startDragging();
+    });
+
+    listen("textAlignment", (event) => {
+      var newTextAlign = event.payload as string;
+
+      newTextAlign = newTextAlign.toLowerCase();
+
+      console.log(newTextAlign);
+
+      if (
+        newTextAlign === "left" ||
+        newTextAlign === "right" ||
+        newTextAlign === "center"
+      ) {
+        console.log("updated");
+        setTextAlign(newTextAlign);
+      } else {
+        setTextAlign("center"); // Fallback to default value
+      }
     });
 
     listen("fontSize", (event) => {
@@ -88,7 +124,7 @@ export default function Home() {
   return (
     <div
       className="overflow-hidden w-full h-full"
-      style={{ fontSize: `${fontSize}px` }}
+      style={{ fontSize: `${fontSize}px`, textAlign: textAlign }}
     >
       <Subtitles subtitle={subtitle} opacity={opacity} />
     </div>
