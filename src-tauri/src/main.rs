@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use lazy_static::lazy_static;
 use tauri::{Manager, WindowEvent};
-use std::path::{Path, PathBuf};
+use std::{cmp, path::{Path, PathBuf}};
 use tokio::sync::mpsc;
 use std::time::Duration;
 // use tauri_plugin_store::StoreBuilder;
@@ -324,7 +324,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                         }
 
-                        let update_interval = *UPDATE_INTERVAL.lock().await;
+                        let update_interval = cmp::max(200, *UPDATE_INTERVAL.lock().await);
 
                         let subtitle_offset = *SUBTITLE_OFFSET.lock().await;
 

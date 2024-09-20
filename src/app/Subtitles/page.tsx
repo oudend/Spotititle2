@@ -37,17 +37,18 @@ export default function Home() {
       setOpacity((opacity as number) / 100);
 
       var storedTextAlign = (await store.get("textAlignment")) as string;
+      if (storedTextAlign) {
+        storedTextAlign = storedTextAlign.toLowerCase();
 
-      storedTextAlign = storedTextAlign.toLowerCase();
-
-      if (
-        storedTextAlign === "left" ||
-        storedTextAlign === "right" ||
-        storedTextAlign === "center"
-      ) {
-        setTextAlign(storedTextAlign);
-      } else {
-        setTextAlign("center"); // Fallback to default value
+        if (
+          storedTextAlign === "left" ||
+          storedTextAlign === "right" ||
+          storedTextAlign === "center"
+        ) {
+          setTextAlign(storedTextAlign);
+        } else {
+          setTextAlign("center"); // Fallback to default value
+        }
       }
 
       const hideSubtitles =
