@@ -14,6 +14,8 @@ import { ImageInputOptionsProps } from "@/components/ui/inputs";
 //   isVideo: boolean;
 // };
 
+//? listen for song_update and update if the current image is the current cover.
+
 interface BackgroundImageProps {
   width: number;
   height: number;
@@ -33,9 +35,11 @@ const BackgroundImage = (props: BackgroundImageProps) => {
     const updateBackgroundImage = async () => {
       const store = storeRef.current;
 
-      let imageOption: ImageInputOptionsProps | null = JSON.parse(
-        (await store.get("backgroundImage")) as string
-      );
+      let imageOption: ImageInputOptionsProps = (await store.get(
+        "backgroundImage"
+      )) as ImageInputOptionsProps;
+
+      console.log("imageOption", imageOption);
 
       const blurOption: string | null = await store.get("backgroundBlur");
 
@@ -44,11 +48,13 @@ const BackgroundImage = (props: BackgroundImageProps) => {
       );
 
       if (imageOption) {
+        console.log("setting imageOption path", imageOption.path, imageOption);
+
         if (imageOption.extension === "mp4") setIsVideo(true);
         else setIsVideo(false);
-        if (imageOption.static) {
+        if (imageOption.static && imageOption.path) {
           setSrc(imageOption.path);
-        } else {
+        } else if (imageOption.path) {
           setSrc(convertFileSrc(imageOption.path));
         }
       }
@@ -85,15 +91,42 @@ const BackgroundImage = (props: BackgroundImageProps) => {
       setclassNameExtensions(classNameExtension);
     };
 
-    (async () => {
-      console.log("mounting listener");
-      const unlisten = await listen("backgroundUpdate", async (event) => {
-        // event.event is the event name (useful if you want to use a single callback fn for multiple event types)
-        // event.payload is the payload object
-        console.log("background update????");
-        await updateBackgroundImage();
-      });
-    })();
+    console.log("mounting listener");
+    listen("backgroundUpdate", async (event) => {
+      // event.event is the event name (useful if you want to use a single callback fn for multiple event types)
+      // event.payload is the payload object
+      // console.log("background update????");
+      await updateBackgroundImage();
+    });
+
+    listen("current-song-updated", async (event) => {
+      const store = storeRef.current;
+
+      try {
+        const current_song_data = JSON.parse(event.payload as string);
+
+        const images = current_song_data?.item?.album?.images;
+
+        let imageOption: ImageInputOptionsProps = (await store.get(
+          "backgroundImage"
+        )) as ImageInputOptionsProps;
+
+        if (
+          imageOption !== null &&
+          imageOption.label === "Current Song Cover" &&
+          images &&
+          images.length > 0
+        ) {
+          imageOption.path = images[0].url;
+          imageOption.static = true;
+
+          await store.set("backgroundImage", imageOption);
+          await updateBackgroundImage();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    });
 
     updateBackgroundImage();
   }, [storeRef]);

@@ -703,7 +703,7 @@ interface ImageInputOptionsProps {
   extension: string;
   removeable: boolean;
   editeable: boolean;
-  path: string;
+  path: string | null;
   static: boolean;
 }
 

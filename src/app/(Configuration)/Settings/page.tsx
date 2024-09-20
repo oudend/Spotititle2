@@ -215,6 +215,32 @@ export default function Home() {
     return option;
   };
 
+  listen("current-song-updated", async (event) => {
+    try {
+      const current_song_data = JSON.parse(event.payload as string);
+
+      const images = current_song_data?.item?.album?.images;
+
+      console.log(images);
+
+      if (images && images.length > 0) {
+        const newBackgroundOptions = [...backgroundOptions];
+
+        // Check if the index exists
+        if (newBackgroundOptions[1]) {
+          // Update the properties
+          newBackgroundOptions[1].image = images[0].url;
+          newBackgroundOptions[1].path = images[0].url;
+
+          // Set the new state
+          setBackgroundOptions(newBackgroundOptions);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
   useEffect(() => {
     let options: Array<ImageInputOptionsProps> = [];
 
@@ -228,7 +254,47 @@ export default function Home() {
       static: true,
     });
 
+    options.push({
+      label: "Current Song Cover",
+      image: "/assets/backgrounds/default.png",
+      extension: "png",
+      removeable: false,
+      editeable: false,
+      path: null,
+      static: true,
+    });
+
+    async function loadCoverOption() {
+      const current_song_data_string = await invoke("get_current_song");
+
+      const current_song_data = JSON.parse(current_song_data_string as string);
+
+      const images = current_song_data?.item?.album?.images;
+
+      console.log(images);
+
+      if (images && images.length > 0) {
+        options[1].image = images[0].url;
+        options[1].path = images[0].url;
+      }
+
+      setBackgroundOptions(options);
+    }
+
     async function loadBackgroundOptions() {
+      // const current_song_data_string = await invoke("get_current_song");
+
+      // const current_song_data = JSON.parse(current_song_data_string as string);
+
+      // const images = current_song_data?.item?.album?.images;
+
+      // if (images && images.length > 0) {
+      //   options[1].image = images[0];
+      //   options[1].path = images[0];
+      // }
+
+      // console.log("current_song_data", current_song_data?.item?.album?.images);
+
       // const result = await invoke<string>("get_backgrounds", {});
 
       setHideSubtitles(
@@ -271,6 +337,7 @@ export default function Home() {
     }
 
     loadBackgroundOptions();
+    loadCoverOption();
   }, []);
 
   const storeChange = async (id: string, value: string) => {
@@ -296,12 +363,22 @@ export default function Home() {
             className="text-center flex items-center h-20 text-white w-full text-3xl"
           />
         </div>
-        <Dropdown
-          label="Theme"
-          tooltip="Theme for subtitles"
-          id="themeDropdown"
-          options={["Purple", "Green", "Orange", "Red", "White"]}
-          storeChange={storeChange}
+        <ImageDropdownInput
+          label="Background"
+          tooltip={"Subtitle Background"}
+          options={backgroundOptions}
+          id="subtitleBackgroundImage"
+          fallbackImage={"assets/backgrounds/fallback.png"}
+          handleFileUpload={handleFileUpload}
+          handleFileDelete={handleFileDelete}
+          handleFileRename={handleFileRename}
+          minFilenameLength={3}
+          maxFilenameLength={30}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit("subtitleUpdate", { value });
+            // eventBus.dispatch("backgroundUpdate", value);
+          }}
           loadChange={loadChange}
         />
         <Dropdown
@@ -422,11 +499,19 @@ export default function Home() {
           minFilenameLength={3}
           maxFilenameLength={30}
           storeChange={async (id: string, value: string) => {
-            await storeChange(id, value);
-            emit("backgroundUpdate", { value });
+            console.log(JSON.parse(value), "hello?");
+            await storeChange(id, JSON.parse(value));
+            emit("backgroundUpdate");
             // eventBus.dispatch("backgroundUpdate", value);
           }}
-          loadChange={loadChange}
+          loadChange={async (id: string) => {
+            console.log(
+              "await loadChange, backgroundImage",
+              await loadChange(id)
+            );
+
+            return JSON.stringify(await loadChange(id));
+          }}
         />
         <Dropdown
           label="Background Blur"

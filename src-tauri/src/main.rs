@@ -40,6 +40,9 @@ async fn refresh_spotify_token(sp_dc: &str) -> Result<(), String> {
 
 #[tauri::command]
 async fn get_current_song() -> Result<String, String> {
+    let mut global_current_song = CURRENT_SONG.lock().await;
+    return Ok(global_current_song.to_string());
+
     if let Some(spotify) = SPOTIFY.get() {
         let spotify = spotify.lock().await;
         let song_data = match spotify.get_currently_playing().await {
@@ -107,6 +110,7 @@ fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_i
 lazy_static! {
     static ref UPDATE_INTERVAL: Mutex<u64> = Mutex::new(1000); // Default value 1000ms
     static ref SUBTITLE_OFFSET: Mutex<i64> = Mutex::new(0); // Default value 1000ms
+    static ref CURRENT_SONG: Mutex<Value> = Mutex::new(Value::Null); // Default value 1000ms
 }
 
 #[tauri::command]
@@ -121,8 +125,6 @@ async fn set_update_interval(new_interval: u64) {
 async fn set_subtitle_offset(new_offset: i64) {
     let mut offset = SUBTITLE_OFFSET.lock().await; // Await the lock
     *offset = new_offset;
-
-    // println!("set_update_interval: {}", offset);
 }
 
 #[tokio::main]
@@ -273,7 +275,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                 
                                 // println!("song changed: {}", song_id);
 
+                                let mut global_current_song = CURRENT_SONG.lock().await;
+                                
                                 app_handle.emit_all("current-song-updated", current_song.to_string()).unwrap();
+
+                                *global_current_song = current_song;
 
                                 song_lyrics = match spotify.get_lyrics(&song_id).await {
                                     Ok(lyrics) => {

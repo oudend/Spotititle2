@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { BackgroundImage } from "@/components/ui/background";
+import { emit, listen } from "@tauri-apps/api/event";
 import Image from "next/image";
 import "../globals.css";
 import { Store } from "tauri-plugin-store-api";
 import React from "react";
+import { ImageInputOptionsProps } from "@/components/ui/inputs";
 
 const store = new Store(".settings.dat");
 
