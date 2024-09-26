@@ -392,20 +392,50 @@ export default function Home() {
           }}
           loadChange={loadChange}
         />
-        <ButtonInput
-          label="Visibility"
+        <Dropdown
+          label="Visbility"
+          tooltip="Visibility for subtitles"
           id="SubtitleVisibility"
-          text={hideSubtitles ? "Show" : "Hide"}
-          onClick={async () => {
-            setHideSubtitles(!hideSubtitles);
+          options={["Visible", "Hidden"]}
+          storeChange={async (id: string, value: string) => {
+            // setHideSubtitles(value === "Hidden");
 
             await storeChange(
               "hideSubtitles",
-              !hideSubtitles ? "true" : "false"
+              value === "Hidden" ? "true" : "false"
             );
 
-            emit("hideSubtitles", !hideSubtitles);
+            emit("hideSubtitles", value === "Hidden");
+
+            await storeChange(id, value);
+            emit(id, value);
           }}
+          loadChange={loadChange}
+        />
+        <Dropdown
+          label="Text Animation"
+          tooltip="Animation for subtitle text"
+          id="textAnimation"
+          options={["None", "Typing", "Bounce"]}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit(id, value);
+          }}
+          loadChange={loadChange}
+        />
+        <SliderInput
+          label="Animation letter percentage"
+          tooltip="Animation for subtitle text"
+          id="animationDurationPercentage"
+          min={0}
+          max={1}
+          defaultValue={0.1}
+          step={0.01}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit(id, value);
+          }}
+          loadChange={loadChange}
         />
         <SliderInput
           label="Background Opacity"
@@ -433,17 +463,6 @@ export default function Home() {
             await storeChange(id, value);
             emit(id, value);
           }}
-          loadChange={loadChange}
-        />
-        <SliderInput
-          label="Fps"
-          tooltip="Frames per second"
-          id="framesPerSecond"
-          min={0}
-          max={60}
-          defaultValue={15}
-          step={1}
-          storeChange={storeChange}
           loadChange={loadChange}
         />
         <SliderInput

@@ -98,10 +98,11 @@ fn create_thumbnail(src: &str, dest: &str, width: u16, height: u16) -> Result<()
     }
 }
 
-fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_index: i16) {
+fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_index: i16, lyric_display_time: u64) {
     let json_data = json!({
         "text": lyric_text,
-        "index": current_lyric_index
+        "index": current_lyric_index,
+        "displayTime": lyric_display_time
     });
 
     app_handle.emit_all("current-song-lyric-updated", json_data.to_string()).unwrap();
@@ -135,6 +136,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         let app_handle = app.handle();
         
         let mut last_song_id: String = String::new();
+
+        let mut song_duration: u64 = u64::MAX;
         
         let mut song_lyrics: Vec<Value> = Vec::new();  // Storing the lyrics as a vector
         
@@ -271,6 +274,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             // println!("progress: {}", progress);
 
                             if last_song_id != song_id {
+                                song_duration = current_song["item"]["duration_ms"].as_u64().unwrap_or(u64::MAX);
+
+                                println!("song_duration: {}", song_duration);
+
                                 last_song_id = song_id.clone();
                                 
                                 // println!("song changed: {}", song_id);
@@ -304,27 +311,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 current_lyric_index = -1;
 
-                                for lyric in song_lyrics.iter() {
-                                    // println!("{}", lyric["words"].as_str().unwrap_or("").to_string().to_romaji());
+                                // for lyric in song_lyrics.iter() {
+                                //     // println!("{}", lyric["words"].as_str().unwrap_or("").to_string().to_romaji());
 
-                                    let start_time = lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
+                                //     let start_time = lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
 
-                                    // println!("process: {}, {}", start_time, progress);
+                                //     // println!("process: {}, {}", start_time, progress);
 
-                                    if progress < start_time  {
-                                        // println!("finished: {}, {}", start_time, progress);
-                                        if current_lyric_index != -1 {
-                                            let lyric_text = song_lyrics[current_lyric_index as usize]["words"].as_str().unwrap_or("").to_string();
-                                            // println!("{}", lyric_text);
-                                            send_lyric(&app_handle, lyric_text, current_lyric_index);
-                                            // app_handle.emit_all("current-song-lyric-updated", lyric_text).unwrap();
-                                        }
+                                //     if progress < start_time  {
+                                //         // println!("finished: {}, {}", start_time, progress);
+                                //         if current_lyric_index != -1 {
+                                //             let lyric_text = song_lyrics[current_lyric_index as usize]["words"].as_str().unwrap_or("").to_string();
+                                //             // println!("{}", lyric_text);
+                                //             send_lyric(&app_handle, lyric_text, current_lyric_index);
+                                //             // app_handle.emit_all("current-song-lyric-updated", lyric_text).unwrap();
+                                //         }
 
-                                        break;
-                                    }
+                                //         break;
+                                //     }
 
-                                    current_lyric_index += 1;
-                                }
+                                //     current_lyric_index += 1;
+                                // }
 
                             }
 
@@ -348,6 +355,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             if let Some(next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) {
                                 let next_start_time = next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
 
+                                let mut next_lyric_display_time: u64 = (song_duration - next_start_time) ;
+
+                                if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 2) as usize) {
+                                    let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
+                                    //(next_next_start_time - next_start_time)
+                                    next_lyric_display_time = (next_next_start_time - next_start_time);
+                                }
+        
+                            
+
                                 // let next_lyric_text = next_lyric["words"].as_str().unwrap_or("").to_romaji();
                                 let next_lyric_text = next_lyric["words"].as_str().unwrap_or("");
     
@@ -370,9 +387,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                         // println!("next_next_start_time: {}", next_next_start_time);
 
                                         if offset_progress < next_next_start_time {
+                                            next_lyric_display_time = next_next_start_time.saturating_sub(offset_progress);
                                             // println!("{}", next_lyric_text);
                                             // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
-                                            send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index);
+                                            send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time);
                                         }
                                     }
 
@@ -387,7 +405,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 total_time_spent += time_left;
 
-
                                 progress += time_left;
 
                                 // println!("waiting for: {} ms until next line", time_left);
@@ -396,8 +413,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 // println!("{}", next_lyric_text);
 
+                                if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 2) as usize) {
+                                    let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
+                                    next_lyric_display_time = next_next_start_time.saturating_sub(offset_progress + time_left);
+                                }
+
                                 
-                                send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index);
+                                send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time);
                                 
                                 // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
                                 

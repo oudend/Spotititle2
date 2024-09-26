@@ -1,0 +1,48 @@
+.Typing {
+  display: inline-block;
+  opacity: 0; /* Start hidden */
+  transform: translateY(0); /* Start at the original position */
+  animation-name: typing;
+  animation-fill-mode: forwards;
+  animation-timing-function: steps(1); /* Steps for a typing effect */
+}
+
+@keyframes typing {
+  0% {
+    opacity: 0; /* Invisible at the start */
+    transform: translateY(0); /* Original position */
+  }
+  10% {
+    opacity: 1; /* Fully visible */
+    transform: translateY(0); /* Original position */
+  }
+  100% {
+    opacity: 1; /* Fully visible */
+    transform: translateY(0); /* Original position */
+  }
+}
+
+.Bounce {
+  display: inline-block;
+  transform: translateY(0); /* Start at the original position */
+  animation-name: bounce;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-in-out; /* Steps for a typing effect */
+}
+
+@keyframes bounce {
+  0% {
+    transform: translateY(0); /* Original position */
+  }
+  70% {
+    transform: translateY(-20px); /* Original position */
+  }
+  100% {
+    transform: translateY(0); /* Original position */
+  }
+}
+
+.word-wrapper {
+  display: inline-block; /* Ensures the word can still wrap as a unit */
+  white-space: nowrap; /* Prevents wrapping of individual letters */
+}

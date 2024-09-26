@@ -561,7 +561,7 @@ const SliderInput: React.FC<SliderInputProps> = ({
         if (storeChange !== undefined) {
           storeChange(id, savedValue);
         }
-        setValue(Math.min(max, Math.max(min, parseInt(savedValue))));
+        setValue(Math.min(max, Math.max(min, parseFloat(savedValue))));
       } else {
         if (storeChange !== undefined) {
           storeChange(id, "0");
@@ -589,7 +589,7 @@ const SliderInput: React.FC<SliderInputProps> = ({
       newValue = `${min}`;
     }
 
-    setValue(parseInt(newValue));
+    setValue(parseFloat(newValue));
     if (storeChange !== undefined) {
       storeChange(id, newValue);
     }

@@ -16,6 +16,12 @@ export default function Home() {
   const [opacity, setOpacity] = useState(1.0);
   const [fontSize, setFontSize] = useState(10.0);
   const [subtitle, setSubtitle] = useState("subtitles");
+  const [subtitleKey, setSubtitleKey] = useState("0");
+  const [animationClass, setAnimationClass] = useState("none");
+  const [animationDurationPercentage, setAnimationDurationPercentage] =
+    useState<number>(0.1);
+  const [length, setLength] = useState<number>(0);
+  const [animateSubtitles, setAnimateSubtitles] = useState(true);
   const [textAlign, setTextAlign] = useState<"left" | "right" | "center">(
     "center"
   );
@@ -57,13 +63,64 @@ export default function Home() {
       if (hideSubtitles) {
         await tauriWindow.appWindow.hide();
       }
+
+      const textAnimation = await store.get("textAnimation");
+
+      if (textAnimation) setAnimationClass(textAnimation as string);
+
+      const animationDurationPercentageSetting = await store.get(
+        "animationDurationPercentage"
+      );
+
+      if (animationDurationPercentageSetting)
+        setAnimationDurationPercentage(
+          animationDurationPercentageSetting as number
+        );
     };
 
+    var tauriWindow: any; // Hold the imported module reference
+
+    const handleMouseDown = async (e: MouseEvent) => {
+      // Only run in a Tauri environment
+      if (window.__TAURI__) {
+        // console.log(tauriWindow, "eööp??")
+        // if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // Example of handling specific elements
+        await tauriWindow.appWindow.startDragging();
+      }
+    };
+
+    const setupDragListener = async () => {
+      if (window.__TAURI__) {
+        // Dynamically import the module only once, at the start
+        tauriWindow = await import("@tauri-apps/api/window");
+        document.addEventListener("mousedown", handleMouseDown);
+      }
+    };
+
+    setupDragListener();
+
     const noDragSelector = "input, a, button"; // CSS selector
-    document.addEventListener("mousedown", async (e) => {
-      if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // a non-draggable element either in target or its ancestors
-      const tauriWindow = await import("@tauri-apps/api/window");
-      await tauriWindow.appWindow.startDragging();
+    // document.addEventListener("mousedown", async (e) => {
+    //   // if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // a non-draggable element either in target or its ancestors
+    //   const tauriWindow = await import("@tauri-apps/api/window");
+    //   await tauriWindow.appWindow.startDragging();
+    // });
+
+    listen("animationDurationPercentage", (event) => {
+      const animationDurationPercentageSetting = event.payload as number;
+
+      console.log(
+        animationDurationPercentageSetting,
+        "animationDurationPercentageSetting"
+      );
+
+      if (animationDurationPercentageSetting)
+        setAnimationDurationPercentage(animationDurationPercentageSetting);
+    });
+    listen("textAnimation", (event) => {
+      const textAnimation = event.payload as string;
+
+      if (textAnimation) setAnimationClass(textAnimation as string);
     });
 
     listen("textAlignment", (event) => {
@@ -108,6 +165,7 @@ export default function Home() {
       try {
         const current_song_data = JSON.parse(event.payload as string);
 
+        setAnimateSubtitles(false);
         setSubtitle(current_song_data.item.name);
       } catch (e) {
         console.error(e);
@@ -116,7 +174,15 @@ export default function Home() {
     listen("current-song-lyric-updated", async (event) => {
       const current_lyric_data = JSON.parse(event.payload as string);
 
+      setAnimateSubtitles(true);
+
+      setLength(current_lyric_data.displayTime);
+
       setSubtitle(current_lyric_data.text as string);
+
+      setSubtitleKey((current_lyric_data.index as number).toString());
+
+      console.log(current_lyric_data);
     });
 
     loadSettings();
@@ -127,7 +193,15 @@ export default function Home() {
       className="overflow-hidden w-full h-full"
       style={{ fontSize: `${fontSize}px`, textAlign: textAlign }}
     >
-      <Subtitles subtitle={subtitle} opacity={opacity} />
+      <Subtitles
+        subtitle={subtitle}
+        opacity={opacity}
+        length={length}
+        animationDurationPercentage={animationDurationPercentage}
+        key={subtitleKey}
+        animate={animateSubtitles}
+        animationClass={animationClass}
+      />
     </div>
   );
 }
