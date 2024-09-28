@@ -382,6 +382,28 @@ export default function Home() {
           loadChange={loadChange}
         />
         <Dropdown
+          label="Background Type"
+          tooltip="Whether the background should apply to the text or the window."
+          id="backgroundType"
+          options={["Window", "Text"]}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit(id, value);
+          }}
+          loadChange={loadChange}
+        />
+        <Dropdown
+          label="Convert Text"
+          tooltip="Whether the background should apply to the text or the window."
+          id="ConvertText"
+          options={["KanjiToRomaji", "..."]}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit(id, value);
+          }}
+          loadChange={loadChange}
+        />
+        <Dropdown
           label="Text Alignment"
           tooltip="Alignment for subtitle text"
           id="textAlignment"

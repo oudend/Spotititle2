@@ -572,7 +572,7 @@ const SliderInput: React.FC<SliderInputProps> = ({
 
     loadChanges();
     // Load saved value from localStorage when component mounts
-  }, [id, loadChange, storeChange]);
+  }, [id, loadChange, storeChange, max, min]);
 
   const handleChangeSlider = (newValue: number[]) => {
     setValue(newValue[0]);

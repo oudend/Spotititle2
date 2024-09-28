@@ -98,7 +98,7 @@ fn create_thumbnail(src: &str, dest: &str, width: u16, height: u16) -> Result<()
     }
 }
 
-fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_index: i16, lyric_display_time: u64) {
+async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_index: i16, lyric_display_time: u64) {
     let json_data = json!({
         "text": lyric_text,
         "index": current_lyric_index,
@@ -131,6 +131,8 @@ async fn set_subtitle_offset(new_offset: i64) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>  {
     
+    tauri::async_runtime::set(tokio::runtime::Handle::current());
+
     tauri::Builder::default()
     .setup(|app| {
         let app_handle = app.handle();
@@ -175,24 +177,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
         // Get the "subtitleOffset" from the store
         let subtitle_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffset");
-
-        // Use the cloned handle in with_store
-        // let update_interval_result = with_store(app_handle_clone, stores, path.clone(), |store| {
-        //     match store.get("updateInterval") {
-        //         Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
-        //         None => Err(tauri_plugin_store::Error::NotFound(path))
-        //     }
-        // });
-
-        // // Use the cloned handle in with_store
-        // let subtitle_offset_result = with_store(app_handle_clone, stores, path.clone(), |store| {
-        //     match store.get("subtitleOffset") {
-        //         Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
-        //         None => Err(tauri_plugin_store::Error::NotFound(path))
-        //     }
-        // });
-
-        // println!("update_interval_result: {}", update_interval_result.unwrap().clone());
         
         // Spawn an asynchronous task
         tauri::async_runtime::spawn(async move {
@@ -390,7 +374,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                             next_lyric_display_time = next_next_start_time.saturating_sub(offset_progress);
                                             // println!("{}", next_lyric_text);
                                             // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
-                                            send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time);
+                                            send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time).await;
                                         }
                                     }
 
@@ -419,7 +403,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                 }
 
                                 
-                                send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time);
+                                send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time).await;
                                 
                                 // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
                                 
@@ -431,6 +415,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                         println!("update_interval: {}", update_interval);
             
+                        // Make sure you give time to other tasks by using yield_now()
+                        tokio::task::yield_now().await;
+
                         // Sleep for a bit before checking again
                         tokio::time::sleep(Duration::from_millis(update_interval - total_time_spent)).await;
                     }
@@ -439,6 +426,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
     
             Ok(())
         })
+        .plugin(devtools::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics, set_update_interval, set_subtitle_offset])

@@ -36,6 +36,8 @@ mp4 = "0.14.0"
 
 gif = "0.13.1"
 
+devtools = "0.3.3"
+
 reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 flate2 = "1.0"

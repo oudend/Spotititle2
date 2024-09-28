@@ -68,7 +68,12 @@ impl Spotify {
     }
 
     pub async fn get_currently_playing(&self) -> std::result::Result<Value, String> {
-        let client = reqwest::Client::new();
+        // let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(1000)) // Timeout after 10 seconds
+            .connect_timeout(std::time::Duration::from_millis(1000)) // Timeout after 10 seconds
+            .build()
+            .unwrap();
         let response = client
             .get("https://api.spotify.com/v1/me/player/currently-playing")
             .header("Authorization", &self.authorization_string)

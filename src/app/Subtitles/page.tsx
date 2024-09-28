@@ -82,10 +82,12 @@ export default function Home() {
 
     const handleMouseDown = async (e: MouseEvent) => {
       // Only run in a Tauri environment
+      e.preventDefault();
       if (window.__TAURI__) {
         // console.log(tauriWindow, "eööp??")
         // if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // Example of handling specific elements
         await tauriWindow.appWindow.startDragging();
+        console.log("mouseDown event sent");
       }
     };
 
