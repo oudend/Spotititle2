@@ -438,7 +438,7 @@ export default function Home() {
           label="Text Animation"
           tooltip="Animation for subtitle text"
           id="textAnimation"
-          options={["None", "Typing", "Bounce"]}
+          options={["None", "Typing", "Bounce", "Rotate"]}
           storeChange={async (id: string, value: string) => {
             await storeChange(id, value);
             emit(id, value);

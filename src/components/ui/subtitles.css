@@ -46,3 +46,28 @@
   display: inline-block; /* Ensures the word can still wrap as a unit */
   white-space: nowrap; /* Prevents wrapping of individual letters */
 }
+
+.Rotate {
+  display: inline-block;
+  transform: rotate(0deg); /* Start at the original position */
+  animation-name: rotate;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-in-out; /* Steps for a typing effect */
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg); /* Original position */
+  }
+  70% {
+    transform: rotate(20deg); /* Original position */
+  }
+  100% {
+    transform: rotate(20deg); /* Original position */
+  }
+}
+
+.word-wrapper {
+  display: inline-block; /* Ensures the word can still wrap as a unit */
+  white-space: nowrap; /* Prevents wrapping of individual letters */
+}

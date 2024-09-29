@@ -59,9 +59,7 @@ const Subtitles: React.FC<SubtitleProps> = ({
       }}
     >
       <div className="absolute top-0 h-full w-full bg-black bg-transparent"></div>
-      <article
-        className={`noselect ${animationClass} relative z-10 h-full text-white`}
-      >
+      <article className={`noselect relative z-10 h-full text-white`}>
         {words.map((word, wordIndex) => (
           <span
             key={`${subtitle}-${updateKey}-${wordIndex}`}
@@ -86,7 +84,9 @@ const Subtitles: React.FC<SubtitleProps> = ({
               return (
                 <span
                   key={`${subtitle}-${updateKey}-${wordIndex}-${letterIndex}`}
-                  className={`noselect ${animate ? animationClass : ""}`}
+                  className={`noselect ${animationClass} ${
+                    animate ? animationClass : ""
+                  }`}
                   style={{
                     // Calculate animation delay based on global index and total letters
                     animationDelay: `${
