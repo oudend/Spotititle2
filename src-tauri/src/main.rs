@@ -14,9 +14,9 @@ use std::time::Duration;
 use tauri::Wry;
 use tauri_plugin_store::{with_store, StoreCollection};
 
-// use wana_kana::ConvertJapanese;
-// use pinyin::{ToPinyin, ToPinyinMulti};
-// use cjk::{is_japanese, is_korean, is_simplified_chinese, is_traditional_chinese};
+use wana_kana::ConvertJapanese;
+use pinyin::{ToPinyin, ToPinyinMulti};
+use cjk::{is_japanese, is_korean, is_simplified_chinese, is_traditional_chinese};
 
 
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
@@ -189,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                 Ok(stored_update_interval) => {
                     println!("stored_update_interval: {}", stored_update_interval);
 
-                    // Assuming UPDATE_INTERVAL is a Mutex<u64>
+                    // Assuming UPDATE_INTERVAL is a Mutex<u64> 
                     let mut interval = UPDATE_INTERVAL.lock().await; // Await the lock
                     if let Some(str_value) = stored_update_interval.as_str() {
                         match str_value.parse::<u64>() {
@@ -426,7 +426,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
     
             Ok(())
         })
-        .plugin(devtools::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics, set_update_interval, set_subtitle_offset])

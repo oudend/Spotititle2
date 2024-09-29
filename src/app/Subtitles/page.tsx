@@ -17,6 +17,7 @@ export default function Home() {
   const [fontSize, setFontSize] = useState(10.0);
   const [subtitle, setSubtitle] = useState("subtitles");
   const [subtitleKey, setSubtitleKey] = useState("0");
+  const [textBackground, setTextBackground] = useState(false);
   const [animationClass, setAnimationClass] = useState("none");
   const [animationDurationPercentage, setAnimationDurationPercentage] =
     useState<number>(0.1);
@@ -76,6 +77,11 @@ export default function Home() {
         setAnimationDurationPercentage(
           animationDurationPercentageSetting as number
         );
+
+      const backgroundTypeSetting = await store.get("backgroundType");
+
+      if (backgroundTypeSetting)
+        setTextBackground((backgroundTypeSetting as string) === "Text");
     };
 
     var tauriWindow: any; // Hold the imported module reference
@@ -108,6 +114,12 @@ export default function Home() {
     //   await tauriWindow.appWindow.startDragging();
     // });
 
+    listen("backgroundType", (event) => {
+      const backgroundTypeSetting = event.payload as string;
+
+      if (backgroundTypeSetting)
+        setTextBackground(backgroundTypeSetting === "Text");
+    });
     listen("animationDurationPercentage", (event) => {
       const animationDurationPercentageSetting = event.payload as number;
 
@@ -199,8 +211,9 @@ export default function Home() {
         subtitle={subtitle}
         opacity={opacity}
         length={length}
+        textOpacity={textBackground}
         animationDurationPercentage={animationDurationPercentage}
-        key={subtitleKey}
+        updateKey={subtitleKey}
         animate={animateSubtitles}
         animationClass={animationClass}
       />

@@ -6,11 +6,12 @@ import "./subtitles.css"; // We'll use this for CSS animations
 
 interface SubtitleProps {
   subtitle: string;
+  textOpacity?: boolean;
   opacity: number;
   length: number; // total animation time in ms
   animate: boolean;
   animationDurationPercentage: number;
-  key: string;
+  updateKey: string;
   className?: string;
   animationClass?: string;
 }
@@ -21,9 +22,10 @@ const Subtitles: React.FC<SubtitleProps> = ({
   length,
   animate,
   animationDurationPercentage,
-  key,
+  updateKey,
   className,
   animationClass,
+  textOpacity = false,
 }) => {
   const [words, setWords] = useState<string[][]>([]);
   const [individualAnimationDuration, setIndividualAnimationDuration] =
@@ -50,18 +52,23 @@ const Subtitles: React.FC<SubtitleProps> = ({
   }, [subtitle, animate, length, animationDurationPercentage]);
 
   return (
-    <div className=" cursor-default h-full w-full text-wrap bg-black bg-transparent font-medium text-white">
-      <div
-        className="absolute top-0 h-full w-full bg-black"
-        style={{ opacity: opacity }}
-      ></div>
+    <div
+      className=" cursor-default h-full w-full text-wrap bg-black bg-transparent font-medium text-white"
+      style={{
+        backgroundColor: `rgba(0, 0, 0, ${!textOpacity ? opacity : 0})`,
+      }}
+    >
+      <div className="absolute top-0 h-full w-full bg-black bg-transparent"></div>
       <article
         className={`noselect ${animationClass} relative z-10 h-full text-white`}
       >
         {words.map((word, wordIndex) => (
           <span
-            key={`${subtitle}-${key}-${wordIndex}`}
-            className="word-wrapper noselect"
+            key={`${subtitle}-${updateKey}-${wordIndex}`}
+            className={`word-wrapper noselect`}
+            style={{
+              backgroundColor: `rgba(0, 0, 0, ${textOpacity ? opacity : 0})`,
+            }}
           >
             {word.map((letter, letterIndex) => {
               // Calculate the global index for this letter
@@ -78,7 +85,7 @@ const Subtitles: React.FC<SubtitleProps> = ({
 
               return (
                 <span
-                  key={`${subtitle}-${key}-${wordIndex}-${letterIndex}`}
+                  key={`${subtitle}-${updateKey}-${wordIndex}-${letterIndex}`}
                   className={`noselect ${animate ? animationClass : ""}`}
                   style={{
                     // Calculate animation delay based on global index and total letters
