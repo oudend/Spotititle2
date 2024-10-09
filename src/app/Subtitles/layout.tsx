@@ -154,18 +154,24 @@ export default function SubtitlesLayout({
     updateBackground();
   });
 
+  // className={` ${
+  //   textBackground
+  //     ? "relative w-fit h-fit overflow-hidden"
+  //     : "w-full h-full"
+  // }`}
+
   return (
     <html lang="en" className="overflow-hidden bg-transparent h-full">
       <body className="h-full bg-transparent">
-        <main className="h-full w-full">
+        <main className="h-full w-full flex justify-center items-center">
           <div
-            className={` ${
+            className={`${
               textBackground
-                ? "relative w-fit h-fit overflow-hidden"
-                : "w-full h-full"
+                ? "relative inline-block overflow-hidden text-center"
+                : ""
             }`}
           >
-            {children}
+            {children} {/* Centered text */}
             <BackgroundImage
               alt="background"
               width={1000}
