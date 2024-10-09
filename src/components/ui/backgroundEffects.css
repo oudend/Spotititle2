@@ -1,0 +1,45 @@
+@keyframes spinClockwise {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes spinCounterClockwise {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+.spin-effect[data-value="first"] {
+  animation: spinClockwise 30s linear infinite;
+}
+.spin-effect[data-value="second"] {
+  animation: spinCounterClockwise 30s linear infinite;
+}
+
+.spin-effect {
+  top: 50%;
+  left: 50%;
+  position: absolute;
+  min-width: max(
+    150vh,
+    150vw
+  ) !important; /* Make the width larger than the viewport to ensure it covers while spinning */
+  min-height: max(
+    150vh,
+    150vw
+  ) !important; /* Make the height larger than the viewport */
+  object-fit: cover; /* Ensures the image covers the area without distortion */
+  -webkit-transform-origin: 50% 50%;
+  -moz-transform-origin: 50% 50%;
+  -o-transform-origin: 50% 50%;
+  transform-origin: 50% 50%;
+  -webkit-filter: blur(50px);
+  filter: blur(50px);
+}

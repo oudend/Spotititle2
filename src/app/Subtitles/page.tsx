@@ -86,12 +86,29 @@ export default function Home() {
 
     var tauriWindow: any; // Hold the imported module reference
 
+    function throttle(callback: any, limit: number) {
+      var wait = false; // Initially, we're not waiting
+      return function () {
+        // We return a throttled function
+        if (!wait) {
+          // If we're not waiting
+          callback.call(); // Execute users function
+          wait = true; // Prevent future invocations
+          setTimeout(function () {
+            // After a period of time
+            wait = false; // And allow future invocations
+          }, limit);
+        }
+      };
+    }
+
     const handleMouseDown = async (e: MouseEvent) => {
       // Only run in a Tauri environment
-      e.preventDefault();
+      // e.preventDefault();
       if (window.__TAURI__) {
         // console.log(tauriWindow, "eööp??")
         // if (e.target && (e.target as HTMLElement).closest(noDragSelector)) return; // Example of handling specific elements
+
         await tauriWindow.appWindow.startDragging();
         console.log("mouseDown event sent");
       }
@@ -101,7 +118,7 @@ export default function Home() {
       if (window.__TAURI__) {
         // Dynamically import the module only once, at the start
         tauriWindow = await import("@tauri-apps/api/window");
-        document.addEventListener("mousedown", handleMouseDown);
+        document.addEventListener("mousedown", throttle(handleMouseDown, 500));
       }
     };
 
@@ -209,7 +226,7 @@ export default function Home() {
     >
       <Subtitles
         subtitle={subtitle}
-        opacity={opacity}
+        opacity={0}
         length={length}
         textOpacity={textBackground}
         animationDurationPercentage={animationDurationPercentage}

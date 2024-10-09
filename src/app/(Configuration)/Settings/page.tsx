@@ -375,8 +375,34 @@ export default function Home() {
           minFilenameLength={3}
           maxFilenameLength={30}
           storeChange={async (id: string, value: string) => {
+            await storeChange(id, JSON.parse(value));
+            emit("subtitleBackgroundUpdate", { value });
+            // eventBus.dispatch("backgroundUpdate", value);
+          }}
+          loadChange={async (id: string) => {
+            return JSON.stringify(await loadChange(id));
+          }}
+        />
+        <Dropdown
+          label="Background Effect"
+          tooltip="Subtitle Background Effect for background"
+          id="subtitleBackgroundEffect"
+          options={["none", "spin-effect"]}
+          storeChange={async (id: string, value: string) => {
             await storeChange(id, value);
-            emit("subtitleUpdate", { value });
+            emit("subtitleBackgroundUpdate", { value });
+            // eventBus.dispatch("backgroundUpdate", value);
+          }}
+          loadChange={loadChange}
+        />
+        <Dropdown
+          label="Background Blur"
+          tooltip="Subtitle Blur amount for background"
+          id="subtitleBackgroundBlur"
+          options={["none", "small", "medium", "large"]}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit("subtitleBackgroundUpdate", { value });
             // eventBus.dispatch("backgroundUpdate", value);
           }}
           loadChange={loadChange}
@@ -540,19 +566,25 @@ export default function Home() {
           minFilenameLength={3}
           maxFilenameLength={30}
           storeChange={async (id: string, value: string) => {
-            console.log(JSON.parse(value), "hello?");
             await storeChange(id, JSON.parse(value));
             emit("backgroundUpdate");
             // eventBus.dispatch("backgroundUpdate", value);
           }}
           loadChange={async (id: string) => {
-            console.log(
-              "await loadChange, backgroundImage",
-              await loadChange(id)
-            );
-
             return JSON.stringify(await loadChange(id));
           }}
+        />
+        <Dropdown
+          label="Background Effect"
+          tooltip="Background Effect for background"
+          id="backgroundEffect"
+          options={["none", "spin-effect"]}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit("backgroundUpdate", { value });
+            // eventBus.dispatch("backgroundUpdate", value);
+          }}
+          loadChange={loadChange}
         />
         <Dropdown
           label="Background Blur"
