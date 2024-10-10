@@ -524,6 +524,135 @@ const Dropdown: React.FC<DropdownProps> = ({
   );
 };
 
+interface MultiSelectDropdownProps {
+  label: string;
+  tooltip?: string;
+  id: string;
+  options: Array<string>;
+  onSelectionChange?: (selectedOptions: string[]) => void;
+  storeChange?: (id: string, value: string) => void;
+  loadChange?: (id: string) => Promise<string | null>;
+}
+
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
+  label,
+  id,
+  options,
+  onSelectionChange,
+  storeChange,
+  loadChange,
+}) => {
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+
+  const toggleOption = (option: string) => {
+    const newSelection = selectedOptions.includes(option)
+      ? selectedOptions.filter((item) => item !== option)
+      : [...selectedOptions, option];
+
+    setSelectedOptions(newSelection);
+    if (onSelectionChange) {
+      onSelectionChange(newSelection);
+    }
+
+    handleOptionChange(option);
+  };
+
+  useEffect(() => {
+    async function loadChanges() {
+      // Try to load saved value from loadChange prop or localStorage
+      let savedValue = loadChange ? await loadChange(id) : null;
+
+      if (savedValue === null) {
+        savedValue = localStorage.getItem(id);
+      }
+
+      if (savedValue) {
+        const parsedValue = JSON.parse(savedValue); // Assume it's stored as a JSON array
+        setSelectedOptions(parsedValue);
+
+        if (onSelectionChange) {
+          onSelectionChange(parsedValue); // Notify parent of the selection
+        }
+      } else {
+        // If no saved value, use an empty array (or provide a default selection if needed)
+        if (storeChange) {
+          storeChange(id, "[]");
+        }
+        setSelectedOptions([]);
+      }
+    }
+
+    loadChanges(); // Load saved selections when the component mounts
+  }, [id, loadChange, storeChange, options, onSelectionChange]);
+
+  const handleOptionChange = (option: string) => {
+    const updatedSelection = selectedOptions.includes(option)
+      ? selectedOptions.filter((selected) => selected !== option)
+      : [...selectedOptions, option];
+
+    setSelectedOptions(updatedSelection); // Update the selected options
+
+    if (storeChange) {
+      storeChange(id, JSON.stringify(updatedSelection)); // Store changes
+    }
+
+    if (onSelectionChange) {
+      onSelectionChange(updatedSelection); // Notify parent of the updated selection
+    }
+
+    // Optionally, save to localStorage (in case storeChange isn't provided)
+    localStorage.setItem(id, JSON.stringify(updatedSelection));
+  };
+
+  return (
+    <div className="flex w-[100%] gap-[62px] h-20 bg-[rgba(0,0,0,0.6)] z-3 justify-center items-center">
+      <label
+        htmlFor={id}
+        className="w-[120px] align-middle flex items-center ml-8"
+      >
+        {label}
+      </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            role="combobox"
+            aria-expanded={open}
+            className="w-[920px] bg-stone-900 text-inherit text-xl font-normal justify-between h-14 rounded-3xl"
+          >
+            {selectedOptions.length > 0 ? selectedOptions.join(", ") : "None"}
+            <ChevronsUpDown className="w-4 h-4 ml-2 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[920px] bg-stone-900/[.95] p-0 border-0 rounded-3xl">
+          <Command className="border-0 text-white rounded-3xl bg-stone-900/[.1]">
+            <CommandList className="bg-stone-900/[.1]">
+              {options.map((option) => (
+                <CommandItem
+                  className="opacity-50 h-14"
+                  key={option}
+                  value={option}
+                  onSelect={() => toggleOption(option)}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selectedOptions.includes(option)
+                        ? "opacity-100"
+                        : "opacity-0"
+                    )}
+                  />
+                  {option}
+                </CommandItem>
+              ))}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
+
 interface SliderInputProps {
   label: string;
   tooltip?: string;
@@ -1066,8 +1195,9 @@ export {
   SecretInput,
   TextInput,
   CheckboxButton,
-  Dropdown,
   SliderInput,
+  Dropdown,
+  MultiSelectDropdown,
   ImageDropdownInput,
   Label,
   ButtonInput,

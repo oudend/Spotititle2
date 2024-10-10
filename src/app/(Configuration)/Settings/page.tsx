@@ -27,6 +27,7 @@ import {
   Dropdown,
   SliderInput,
   ImageDropdownInput,
+  MultiSelectDropdown,
   ImageInputOptionsProps,
   Label,
   ButtonInput,
@@ -418,16 +419,18 @@ export default function Home() {
           }}
           loadChange={loadChange}
         />
-        <Dropdown
+        <MultiSelectDropdown
           label="Convert Text"
           tooltip="Whether the background should apply to the text or the window."
           id="ConvertText"
-          options={["KanjiToRomaji", "..."]}
+          options={["KanjiToRomaji", "toPinyin"]}
           storeChange={async (id: string, value: string) => {
-            await storeChange(id, value);
-            emit(id, value);
+            console.log("ConvertText", value);
+            await storeChange(id, JSON.parse(value));
           }}
-          loadChange={loadChange}
+          loadChange={async (id: string) => {
+            return JSON.stringify(await loadChange(id));
+          }}
         />
         <Dropdown
           label="Text Alignment"

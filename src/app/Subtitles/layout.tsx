@@ -129,7 +129,7 @@ export default function SubtitlesLayout({
         const images = current_song_data?.item?.album?.images;
 
         let imageOption: ImageInputOptionsProps = (await store.get(
-          "backgroundImage"
+          "subtitleBackgroundImage"
         )) as ImageInputOptionsProps;
 
         if (
@@ -143,7 +143,7 @@ export default function SubtitlesLayout({
 
           setSrc(imageOption.path as string);
 
-          await store.set("backgroundImage", imageOption);
+          await store.set("subtitleBackgroundImage", imageOption);
         }
       } catch (e) {
         console.error(e);

@@ -15,8 +15,8 @@ use tauri::Wry;
 use tauri_plugin_store::{with_store, StoreCollection};
 
 use wana_kana::ConvertJapanese;
-use pinyin::{ToPinyin, ToPinyinMulti};
-use cjk::{is_japanese, is_korean, is_simplified_chinese, is_traditional_chinese};
+use pinyin::{ToPinyin, ToPinyinMulti, Pinyin};
+use cjk::{is_japanese, is_korean, is_simplified_chinese, is_traditional_chinese, to_pinyin};
 
 
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
@@ -98,9 +98,108 @@ fn create_thumbnail(src: &str, dest: &str, width: u16, height: u16) -> Result<()
     }
 }
 
+// Define a helper function to get values from the store
+fn get_store_value(
+    app_handle: tauri::AppHandle<Wry>,
+    stores: tauri::State<'_,StoreCollection<Wry>>,
+    path: PathBuf,
+    key: &str,
+) -> Result<serde_json::Value, tauri_plugin_store::Error> {
+    with_store(app_handle, stores, path, |store| {
+        match store.get(key) {
+            Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
+            None => Err(tauri_plugin_store::Error::NotFound(PathBuf::from(key))),
+        }
+    })
+}
+
 async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_index: i16, lyric_display_time: u64) {
+    let stores = app_handle.state::<StoreCollection<Wry>>();
+    let path = PathBuf::from(".settings.dat");
+
+    let stored_subtitle_conversions = get_store_value(app_handle.clone(), stores, path, "ConvertText"); 
+
+    let subtitle_conversions = match stored_subtitle_conversions {
+        Ok(value) => {
+            value.as_array().cloned().unwrap_or_else(Vec::new)
+        }
+        Err(e) => {
+            println!("Could not retrieve subtitle conversions. {}", e);
+            Vec::new()
+        }
+    };
+
+    let mut new_lyric_text = lyric_text.clone();
+
+    fn detect_language(text: &str) -> Option<&'static str> {
+        let mut chinese_count = 0;
+        let mut japanese_count = 0;
+    
+        for c in text.chars() {
+            if (c >= '\u{4E00}' && c <= '\u{9FFF}') || // CJK Unified Ideographs
+               (c >= '\u{3400}' && c <= '\u{4DBF}') || // CJK Unified Ideographs Extension A
+               (c >= '\u{20000}' && c <= '\u{2A6DF}') || // CJK Unified Ideographs Extension B
+               (c >= '\u{F900}' && c <= '\u{FAFF}') { // CJK Compatibility Ideographs
+                chinese_count += 1;
+            } else if (c >= '\u{3040}' && c <= '\u{309F}') || // Hiragana
+                      (c >= '\u{30A0}' && c <= '\u{30FF}') { // Katakana
+                japanese_count += 1;
+            }
+        }
+    
+        if chinese_count > japanese_count {
+            Some("Chinese")
+        } else if japanese_count > chinese_count {
+            Some("Japanese")
+        } else {
+            None // If counts are equal or both are 0
+        }
+    }
+
+    for conversion in subtitle_conversions {
+        if let Some(conversion_str) = conversion.as_str() {
+            let detected_language = detect_language(&lyric_text);
+
+            match conversion_str {
+                "KanjiToRomaji" => {
+                    if detected_language == Some("Japanese") {
+                        new_lyric_text = new_lyric_text.to_romaji();
+                        println!("Handling KanjiToRomaji conversion {}", new_lyric_text);
+                    }
+
+                    // Handle KanjiToRomaji logic here
+                }
+                "toPinyin" => {
+                    // if is_simplified_chinese(&lyric_text) || is_traditional_chinese(&lyric_text) {
+                    if detected_language == Some("Chinese") {
+                        new_lyric_text = new_lyric_text
+                            .chars()
+                            .map(|c| {
+                                // Check if the character is Chinese (i.e., it has Pinyin)
+                                if let Some(pinyin) = c.to_pinyin() {
+                                    pinyin.plain().to_string() // Convert Chinese character to Pinyin
+                                } else {
+                                    c.to_string() // Keep non-Chinese characters as they are
+                                }
+                            })
+                            .collect();
+
+                        println!("Handling toPinyin conversion {}", new_lyric_text);
+                    }
+
+                    // Handle blatobla logic here
+                }
+                other => {
+                    println!("Unknown conversion: {}", other);
+                }
+            }
+        } else {
+            println!("Invalid conversion type, not a string");
+        }
+    }
+
     let json_data = json!({
-        "text": lyric_text,
+        "text": new_lyric_text,
         "index": current_lyric_index,
         "displayTime": lyric_display_time
     });
@@ -154,23 +253,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         let stores = app.state::<StoreCollection<Wry>>();
         let path = PathBuf::from(".settings.dat");
 
-        // Define a helper function to get values from the store
-        fn get_store_value(
-            app_handle: tauri::AppHandle<Wry>,
-            stores: tauri::State<'_,StoreCollection<Wry>>,
-            path: PathBuf,
-            key: &str,
-        ) -> Result<serde_json::Value, tauri_plugin_store::Error> {
-            with_store(app_handle, stores, path, |store| {
-                match store.get(key) {
-                    Some(value) => Ok(value.clone()), // Return the value wrapped in Ok
-                    None => Err(tauri_plugin_store::Error::NotFound(PathBuf::from(key))),
-                }
-            })
-        }
-
         // let app_handle_clone = app_handle.clone(); // Clone the handle to avoid borrowing issues
-
 
         // Get the "updateInterval" from the store
         let update_interval_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "updateInterval");
@@ -178,11 +261,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         // Get the "subtitleOffset" from the store
         let subtitle_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffset");
         
+
         // Spawn an asynchronous task
         tauri::async_runtime::spawn(async move {
-            // Call the status_stream_process which contains the infinite loop
-
-            // println!("getting update_interval_result {}", update_interval_result.unwrap());
 
             // Handle the result of the operation
             match update_interval_result {
@@ -363,13 +444,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                 }
 
                                 if offset_progress > next_start_time { //? check if progress was increased by user and prevent possible misses
-                                    current_lyric_index += 1;
-
+                                    
                                     if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) { //? check if the program skipped by mistake 
                                         let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
-
+                                        
                                         // println!("next_next_start_time: {}", next_next_start_time);
-
+                                        
                                         if offset_progress < next_next_start_time {
                                             next_lyric_display_time = next_next_start_time.saturating_sub(offset_progress);
                                             // println!("{}", next_lyric_text);
@@ -377,6 +457,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                             send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time).await;
                                         }
                                     }
+                                    
+                                    current_lyric_index += 1;
 
                                     continue;
                                 }
@@ -416,7 +498,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                         println!("update_interval: {}", update_interval);
             
                         // Make sure you give time to other tasks by using yield_now()
-                        tokio::task::yield_now().await;
+                        // tokio::task::yield_now().await;
 
                         // Sleep for a bit before checking again
                         tokio::time::sleep(Duration::from_millis(update_interval - total_time_spent)).await;
