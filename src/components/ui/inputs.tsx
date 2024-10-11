@@ -546,6 +546,10 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   const [open, setOpen] = useState(false);
 
   const toggleOption = (option: string) => {
+    if (!selectedOptions) {
+      setSelectedOptions([]);
+    }
+
     const newSelection = selectedOptions.includes(option)
       ? selectedOptions.filter((item) => item !== option)
       : [...selectedOptions, option];
@@ -567,20 +571,30 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
         savedValue = localStorage.getItem(id);
       }
 
-      if (savedValue) {
+      if (savedValue && savedValue.length > 0) {
         const parsedValue = JSON.parse(savedValue); // Assume it's stored as a JSON array
         setSelectedOptions(parsedValue);
 
         if (onSelectionChange) {
           onSelectionChange(parsedValue); // Notify parent of the selection
         }
-      } else {
-        // If no saved value, use an empty array (or provide a default selection if needed)
-        if (storeChange) {
-          storeChange(id, "[]");
+
+        if (!selectedOptions) {
+          setSelectedOptions([]);
         }
-        setSelectedOptions([]);
+
+        console.log("selectedOptions", selectedOptions);
+
+        return;
       }
+
+      // If no saved value, use an empty array (or provide a default selection if needed)
+      if (storeChange) {
+        storeChange(id, "[]");
+      }
+      setSelectedOptions([]);
+
+      console.log("selectedOptions", selectedOptions);
     }
 
     loadChanges(); // Load saved selections when the component mounts
@@ -620,7 +634,9 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
             aria-expanded={open}
             className="w-[920px] bg-stone-900 text-inherit text-xl font-normal justify-between h-14 rounded-3xl"
           >
-            {selectedOptions.length > 0 ? selectedOptions.join(", ") : "None"}
+            {selectedOptions && selectedOptions.length > 0
+              ? selectedOptions.join(", ")
+              : "None"}
             <ChevronsUpDown className="w-4 h-4 ml-2 opacity-50 shrink-0" />
           </Button>
         </PopoverTrigger>
@@ -637,7 +653,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      selectedOptions.includes(option)
+                      selectedOptions && selectedOptions.includes(option)
                         ? "opacity-100"
                         : "opacity-0"
                     )}
