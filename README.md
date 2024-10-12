@@ -2,12 +2,9 @@
 
 Spotititle is a Tauri-based application designed to display real-time song titles and lyrics as subtitles. It uses a token (SP DC) that allows the backend to fetch the current song playing and its corresponding lyrics. The app consists of two windows: one for configuring settings, debugging, and inputting the SP DC token, and another to display the subtitles. (Spotititle 2.0 is an upgrade from a rudamentary c++ concept called [Spotititle](https://github.com/oudend/spotititle))
 
-- Home & Settings Window:  
-  ![Home](./assets/images/home.png)
-  ![Settings](./assets/images/settings.png)
-
-- Subtitles Window:  
-  ![Subtitles](./assets/images/subtitles.png)
+![Demo](./assets/images/demo.gif)
+![Home](./assets/images/home.png)
+![Settings](./assets/images/settings.png)
 
 ## Table of Contents
 
