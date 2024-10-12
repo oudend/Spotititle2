@@ -1,14 +1,18 @@
-# Spotititle 2.0
+# Spotititle 2
 
-Spotititle is a Tauri-based application designed to display real-time song titles and lyrics as subtitles. It uses a token (SP DC) that allows the backend to fetch the current song playing and its corresponding lyrics. The app consists of two windows: one for configuring settings, debugging, and inputting the SP DC token, and another to display the subtitles. (Spotititle 2.0 is an upgrade from a rudamentary c++ concept called [Spotititle](https://github.com/oudend/spotititle))
+Spotititle is a Tauri-based application designed to display realtime song lyrics in a subtitle window. It uses a [SP DC token](#get-the-sp-dc-token) that allows the backend to fetch the current song playing and its corresponding lyrics. The app consists of two windows: one for configuring settings, and handling the SP DC token, and another to display the subtitles.
+
+> Spotititle 2 is a feature-complete upgrade of a C++ project called [Spotititle](https://github.com/oudend/spotititle).
 
 ![Demo](./assets/images/demo.gif)
 ![Home](./assets/images/home.png)
 ![Settings](./assets/images/settings.png)
 
-## Table of Contents
+You can enhance the "Get the SP DC token" section by making it more descriptive and formatting it cleanly. Additionally, ensure the Table of Contents link works correctly. Here's a revision for both:
 
-- [Features](#features)
+### Table of Contents
+
+- [Get the SP DC Token](#get-the-sp-dc-token)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Development](#development)
@@ -19,11 +23,37 @@ Spotititle is a Tauri-based application designed to display real-time song title
 - [License](#license)
 - [Contact](#contact)
 
-## Features
+---
 
-- **Real-time Lyrics Display**: Displays the lyrics of the currently playing song in a dedicated subtitle window.
-- **SP DC Authentication**: Input the SP DC token to authenticate and fetch song details.
-- **Settings & Debugging**: Provides a secondary window for configuration, debugging, and input management.
+## Get the SP DC Token
+
+To obtain the `sp_dc` token on chrome, follow these steps:
+
+1. **Open an Incognito Window:**
+
+   - Go to [Spotify Web](https://open.spotify.com) and log in with your Spotify credentials.
+
+2. **Open Developer Tools:**
+
+   - Right-click anywhere on the page and select `Inspect`, or press `F12` to open the browser’s Developer Tools.
+
+3. **Navigate to the Application Tab:**
+
+   - In the Developer Tools window, select the `Application` tab at the top.
+
+4. **Locate the Cookie:**
+
+   - From the left sidebar, expand `Storage > Cookies > open.spotify.com`.
+   - Look for a cookie named `sp_dc`.
+
+5. **Copy the Token:**
+
+   - Right-click on the `sp_dc` cookie, then copy its value.
+
+6. **Important:**
+   - **Do not log out** of Spotify in that window after copying the token. Logging out will invalidate the cookies.
+7. **Close the Incognito Window:**
+   - Safely close the window once the token is copied.
 
 ## Prerequisites
 
@@ -93,7 +123,7 @@ The build artifacts will be generated in the `src-tauri/target/release/` directo
 You can download the latest version of Spotititle from the [Releases](https://github.com/oudend/Spotititle2/releases) page.
 
 1. Launch the app.
-2. In the **Settings & Debugging Window**, input your SP DC token.
+2. In the **Main Window**, input your SP DC token.
 3. Once authenticated, the app will start displaying the current song and lyrics in the **Subtitles Window**.
 
 ## Directory Structure
@@ -127,4 +157,4 @@ This project is licensed under the Mozilla Public License Version 2.0 License. S
 
 ## Contact
 
-If you have any questions, feel free to open an issue or contact me at ternermartin@gmail.com.
+If you have any questions, feel free to open an issue or contact me on Discord: `oudend`.
