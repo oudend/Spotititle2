@@ -23,9 +23,6 @@ export default function Home() {
     useState<number>(0.1);
   const [length, setLength] = useState<number>(0);
   const [animateSubtitles, setAnimateSubtitles] = useState(true);
-  const [textAlign, setTextAlign] = useState<"left" | "right" | "center">(
-    "center"
-  );
 
   const storeRef = useRef(new Store(".settings.dat"));
 
@@ -42,21 +39,6 @@ export default function Home() {
       const opacity = await store.get("backgroundOpacity");
 
       setOpacity((opacity as number) / 100);
-
-      var storedTextAlign = (await store.get("textAlignment")) as string;
-      if (storedTextAlign) {
-        storedTextAlign = storedTextAlign.toLowerCase();
-
-        if (
-          storedTextAlign === "left" ||
-          storedTextAlign === "right" ||
-          storedTextAlign === "center"
-        ) {
-          setTextAlign(storedTextAlign);
-        } else {
-          setTextAlign("center"); // Fallback to default value
-        }
-      }
 
       const hideSubtitles =
         (await store.get("hideSubtitles")) === "true" ? true : false;
@@ -154,25 +136,6 @@ export default function Home() {
       if (textAnimation) setAnimationClass(textAnimation as string);
     });
 
-    listen("textAlignment", (event) => {
-      var newTextAlign = event.payload as string;
-
-      newTextAlign = newTextAlign.toLowerCase();
-
-      console.log(newTextAlign);
-
-      if (
-        newTextAlign === "left" ||
-        newTextAlign === "right" ||
-        newTextAlign === "center"
-      ) {
-        console.log("updated");
-        setTextAlign(newTextAlign);
-      } else {
-        setTextAlign("center"); // Fallback to default value
-      }
-    });
-
     listen("fontSize", (event) => {
       //? validation required
       setFontSize(Math.min(Math.max(10, event.payload as number), 100));
@@ -222,7 +185,7 @@ export default function Home() {
   return (
     <div
       className="overflow-hidden w-full h-full"
-      style={{ fontSize: `${fontSize}px`, textAlign: textAlign }}
+      style={{ fontSize: `${fontSize}px` }}
     >
       <Subtitles
         subtitle={subtitle}

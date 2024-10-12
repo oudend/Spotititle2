@@ -20,6 +20,12 @@ export default function SubtitlesLayout({
   const [src, setSrc] = useState("/assets/backgrounds/default.png");
   const [isVideo, setIsVideo] = useState(false);
   const [backgroundEffect, setBackgroundEffect] = useState("");
+  const [horizontalTextAlign, setHorizontalTextAlign] = useState<
+    "left" | "right" | "center"
+  >("center");
+  const [verticalTextAlign, setVerticalTextAlign] = useState<
+    "start" | "center" | "end"
+  >("center");
 
   const storeRef = useRef(new Store(".settings.dat"));
 
@@ -35,6 +41,40 @@ export default function SubtitlesLayout({
 
       if (backgroundTypeSetting)
         setTextBackground((backgroundTypeSetting as string) === "Text");
+
+      var storedTextAlign = (await store.get(
+        "horizontalTextAlignment"
+      )) as string;
+      if (storedTextAlign) {
+        storedTextAlign = storedTextAlign.toLowerCase();
+
+        if (
+          storedTextAlign === "left" ||
+          storedTextAlign === "right" ||
+          storedTextAlign === "center"
+        ) {
+          setHorizontalTextAlign(storedTextAlign);
+        } else {
+          setHorizontalTextAlign("center"); // Fallback to default value
+        }
+      }
+
+      var storedTextAlign = (await store.get(
+        "verticalTextAlignment"
+      )) as string;
+      if (storedTextAlign) {
+        storedTextAlign = storedTextAlign.toLowerCase();
+
+        if (
+          storedTextAlign === "start" ||
+          storedTextAlign === "end" ||
+          storedTextAlign === "center"
+        ) {
+          setVerticalTextAlign(storedTextAlign);
+        } else {
+          setVerticalTextAlign("center"); // Fallback to default value
+        }
+      }
     };
 
     async function updateBackground() {
@@ -104,6 +144,41 @@ export default function SubtitlesLayout({
       }
     }
 
+    listen("horizontalTextAlignment", (event) => {
+      var newTextAlign = event.payload as string;
+
+      newTextAlign = newTextAlign.toLowerCase();
+
+      console.log(newTextAlign);
+
+      if (
+        newTextAlign === "left" ||
+        newTextAlign === "right" ||
+        newTextAlign === "center"
+      ) {
+        setHorizontalTextAlign(newTextAlign);
+      } else {
+        setHorizontalTextAlign("center"); // Fallback to default value
+      }
+    });
+    listen("verticalTextAlignment", (event) => {
+      var newTextAlign = event.payload as string;
+
+      newTextAlign = newTextAlign.toLowerCase();
+
+      console.log(newTextAlign);
+
+      if (
+        newTextAlign === "start" ||
+        newTextAlign === "end" ||
+        newTextAlign === "center"
+      ) {
+        setVerticalTextAlign(newTextAlign);
+      } else {
+        setVerticalTextAlign("center"); // Fallback to default value
+      }
+    });
+
     listen("subtitleBackgroundUpdate", async (event) => {
       await updateBackground();
     });
@@ -163,7 +238,13 @@ export default function SubtitlesLayout({
   return (
     <html lang="en" className="overflow-hidden bg-transparent h-full">
       <body className="h-full bg-transparent">
-        <main className="h-full w-full flex justify-center items-center">
+        <main
+          className="h-full w-full flex"
+          style={{
+            justifyContent: horizontalTextAlign,
+            alignItems: verticalTextAlign,
+          }}
+        >
           <div
             className={`${
               textBackground

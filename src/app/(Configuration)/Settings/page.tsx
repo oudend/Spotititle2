@@ -433,10 +433,21 @@ export default function Home() {
           }}
         />
         <Dropdown
-          label="Text Alignment"
+          label="Horizontal Text Alignment"
           tooltip="Alignment for subtitle text"
-          id="textAlignment"
+          id="horizontalTextAlignment"
           options={["Left", "Center", "Right"]}
+          storeChange={async (id: string, value: string) => {
+            await storeChange(id, value);
+            emit(id, value);
+          }}
+          loadChange={loadChange}
+        />
+        <Dropdown
+          label="Vertical Text Alignment"
+          tooltip="Alignment for subtitle text"
+          id="verticalTextAlignment"
+          options={["Start", "Center", "End"]}
           storeChange={async (id: string, value: string) => {
             await storeChange(id, value);
             emit(id, value);
