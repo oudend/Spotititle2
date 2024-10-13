@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use lazy_static::lazy_static;
 use tauri::{Manager, WindowEvent};
-use std::{cmp, path::{Path, PathBuf}};
+use std::{cmp, collections::HashMap, path::{Path, PathBuf}};
 use tokio::sync::mpsc;
 use std::time::Duration;
 // use tauri_plugin_store::StoreBuilder;
@@ -210,6 +210,9 @@ async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_l
 lazy_static! {
     static ref UPDATE_INTERVAL: Mutex<u64> = Mutex::new(1000); // Default value 1000ms
     static ref SUBTITLE_OFFSET: Mutex<i64> = Mutex::new(0); // Default value 1000ms
+    static ref SUBTITLE_OFFSETS: Mutex<HashMap<String, i64>> = Mutex::new(HashMap::new()); // Default value 1000ms
+    static ref SAVE_SUBTITLE_OFFSET: Mutex<bool> = Mutex::new(false);
+    static ref SAVE_SUBTITLE_OFFSET_UPDATE: Mutex<bool> = Mutex::new(false);
     static ref CURRENT_SONG: Mutex<Value> = Mutex::new(Value::Null); // Default value 1000ms
 }
 
@@ -225,6 +228,18 @@ async fn set_update_interval(new_interval: u64) {
 async fn set_subtitle_offset(new_offset: i64) {
     let mut offset = SUBTITLE_OFFSET.lock().await; // Await the lock
     *offset = new_offset;
+}
+
+#[tauri::command]
+async fn set_save_subtitle_offset(save: bool) {
+    if save == true {
+        let mut save_offset_update = SAVE_SUBTITLE_OFFSET_UPDATE.lock().await; // Await the lock
+        *save_offset_update = true;
+    }
+
+    let mut save_offset = SAVE_SUBTITLE_OFFSET.lock().await; // Await the lock
+    *save_offset = save;
+
 }
 
 #[tokio::main]
@@ -260,6 +275,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
         // Get the "subtitleOffset" from the store
         let subtitle_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffset");
+
+        let subtitle_offsets_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffsets");
+
+        let save_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffsetCheckbox");
         
 
         // Spawn an asynchronous task
@@ -324,8 +343,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                     println!("Error retrieving update interval: {:?}", e);
                 }
             }
+            match save_offset_result {
+                Ok(stored_save_offset) => {
+                    // println!("stored_update_interval: {}", stored_subtitle_offset);
+
+                    // Assuming UPDATE_INTERVAL is a Mutex<u64>
+                    let mut save_offset = SAVE_SUBTITLE_OFFSET.lock().await; // Await the lock
+                    if let Some(bool_value) = stored_save_offset.as_str() {
+                        *save_offset = bool_value.eq("true"); // Update the mutable variable
+                    } else {
+                        println!("Stored save offset is not a valid bool.");
+                    }
+                }
+                Err(e) => {
+                    // Handle the error case
+                    println!("Error retrieving save offset: {:?}", e);
+                }
+            }
+            match subtitle_offsets_result {
+                Ok(stored_subtitle_offsets) => {
+                    // println!("stored_update_interval: {}", stored_subtitle_offset);
+
+                    // Assuming UPDATE_INTERVAL is a Mutex<u64>
+                    let mut subtitle_offsets = SUBTITLE_OFFSETS.lock().await; // Await the lock
+                    if let Some(object_value) = stored_subtitle_offsets.as_object() {
+                        for (key, value) in object_value.iter() {
+                            // Check if the value is an i64
+                            if let Some(i64_value) = value.as_i64() {
+                                // Insert the key and value into the HashMap
+                                subtitle_offsets.insert(key.clone(), i64_value);
+                                println!("Stored subtitle offset for {}: {}", key, i64_value);
+                            } else {
+                                println!("Value for key '{}' is not a valid i64.", key);
+                            }
+                        }
+                    } else {
+                        println!("Stored subtitle offsets are not a valid JSON object.");
+                    }
+                }
+                Err(e) => {
+                    // Handle the error case
+                    println!("Error retrieving subtitle offsets: {:?}", e);
+                }
+            }
 
             loop {
+                let save_subtitle_offset = *SAVE_SUBTITLE_OFFSET.lock().await;
+                let mut subtitle_offsets = SUBTITLE_OFFSETS.lock().await;
+                let mut save_offset_update = SAVE_SUBTITLE_OFFSET_UPDATE.lock().await; // Await the lock
 
                 if let Some(spotify) = SPOTIFY.get() {
                     let spotify = spotify.lock().await;
@@ -338,10 +403,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                             // println!("progress: {}", progress);
 
+                            if save_subtitle_offset && (last_song_id != song_id || *save_offset_update == true) {
+                                *save_offset_update = false;
+
+                                let offset = subtitle_offsets.entry(song_id.clone()).or_insert(0);
+
+                                let mut subtitle_offset = SUBTITLE_OFFSET.lock().await;
+                                *subtitle_offset = offset.clone();
+
+                                let offset_app_handle = app_handle.clone();
+                                let offset_stores = offset_app_handle.state::<StoreCollection<Wry>>();
+                                let offset_path = PathBuf::from(".settings.dat");
+
+                                match with_store(offset_app_handle.clone(), offset_stores.clone(), offset_path.clone(), |store| {
+                                    store.insert("subtitleOffset".to_string(), json!(offset))
+                                }) {
+                                    Ok(_) => {
+                                        println!("Successfully updated store.");
+                                        with_store(offset_app_handle.clone(), offset_stores, offset_path, |store| store.save()).unwrap();
+                                    },
+                                    Err(e) => println!("Failed to update store: {:?}", e),
+                                }
+
+                                app_handle.emit_all("current-song-offset", offset.clone()).unwrap();
+                            }
+
                             if last_song_id != song_id {
                                 song_duration = current_song["item"]["duration_ms"].as_u64().unwrap_or(u64::MAX);
 
                                 println!("song_duration: {}", song_duration);
+
 
                                 last_song_id = song_id.clone();
                                 
@@ -402,9 +493,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                         }
 
-                        let update_interval = cmp::max(200, *UPDATE_INTERVAL.lock().await);
+                        let update_interval = cmp::max(500, *UPDATE_INTERVAL.lock().await);
 
                         let subtitle_offset = *SUBTITLE_OFFSET.lock().await;
+
+                        if save_subtitle_offset {
+                            let offset = subtitle_offsets.entry(last_song_id.clone()).or_insert(subtitle_offset);
+                            *offset = subtitle_offset;
+
+                            let json_value: tauri_plugin_store::JsonValue = serde_json::to_value(&*subtitle_offsets).unwrap();
+
+                            let offset_app_handle = app_handle.clone();
+                            let offset_stores = offset_app_handle.state::<StoreCollection<Wry>>();
+                            let offset_path = PathBuf::from(".settings.dat");
+
+                            match with_store(offset_app_handle.clone(), offset_stores.clone(), offset_path.clone(), |store| {
+                                store.insert("subtitleOffsets".to_string(), json_value)
+                            }) {
+                                Ok(_) => {
+                                    println!("Successfully updated store.");
+                                    with_store(offset_app_handle.clone(), offset_stores, offset_path, |store| store.save()).unwrap();
+                                },
+                                Err(e) => println!("Failed to update store: {:?}", e),
+                            }
+                        }
+
+                        // let path = PathBuf::from(".settings.dat");
+
+                        // if save_subtitle_offset {
+                        //     match with_store(app_handle.clone(), stores.clone(), path.clone(), |store| {
+                        //         store.insert("subtitleOffset".to_string(), json!(subtitle_offset))
+                        //     }) {
+                        //         Ok(_) => {
+                        //             println!("Successfully updated store.");
+                        //             with_store(app_handle.clone(), stores.clone(), path, |store| store.save()).unwrap();
+                        //         },
+                        //         Err(e) => println!("Failed to update store: {:?}", e),
+                        //     }
+                        // }
 
                         let mut total_time_spent = 0;
 
@@ -438,27 +564,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                 if let Some(current_lyric) = song_lyrics.get(current_lyric_index as usize) { //? check if progress was reversed by user
                                     let current_start_time = current_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
                                     if offset_progress < current_start_time {
+                                        println!("program fixed reversed progress: {}", next_lyric_text);
                                         current_lyric_index -= 1;
                                         continue;
                                     }
                                 }
 
                                 if offset_progress > next_start_time { //? check if progress was increased by user and prevent possible misses
-                                    
-                                    if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) { //? check if the program skipped by mistake 
+
+                                    if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 2) as usize) { //? check if the program skipped by mistake 
                                         let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
+                                        let next_next_lyric_text = next_next_lyric["words"].as_str().unwrap_or("");
                                         
-                                        // println!("next_next_start_time: {}", next_next_start_time);
+                                        println!("offset_progress: {}, next_next_start_time: {}, next_next_lyric_text: {}", offset_progress, next_next_start_time, next_next_lyric_text);
                                         
                                         if offset_progress < next_next_start_time {
                                             next_lyric_display_time = next_next_start_time.saturating_sub(offset_progress);
-                                            // println!("{}", next_lyric_text);
+                                            println!("program fixed mistaken skip: {}", next_lyric_text);
                                             // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
                                             send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time).await;
                                         }
                                     }
-                                    
+                                    println!("program fixed skipped progress: {}", next_lyric_text);
                                     current_lyric_index += 1;
+                                    
 
                                     continue;
                                 }
@@ -501,7 +630,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                         // tokio::task::yield_now().await;
 
                         // Sleep for a bit before checking again
-                        tokio::time::sleep(Duration::from_millis(update_interval - total_time_spent)).await;
+                        tokio::time::sleep(Duration::from_millis(update_interval.saturating_sub(total_time_spent).saturating_sub(300))).await;
                     }
                 }
             });
@@ -510,7 +639,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         })
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics, set_update_interval, set_subtitle_offset])
+        .invoke_handler(tauri::generate_handler![create_thumbnail, refresh_spotify_token, get_current_song, get_song_lyrics, set_update_interval, set_subtitle_offset, set_save_subtitle_offset])
         .on_window_event(|e| {
             if let WindowEvent::Resized(_) = e.event() {
                 std::thread::sleep(std::time::Duration::from_nanos(1));

@@ -7,6 +7,7 @@ import React, {
   useReducer,
   ChangeEvent,
   EffectCallback,
+  useCallback,
 } from "react";
 import { Checkbox } from "@/components/ui/checkbox"; //chadcn
 import { Check, ChevronsUpDown, UploadIcon, X, Pen } from "lucide-react";
@@ -548,6 +549,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   const toggleOption = (option: string) => {
     if (!selectedOptions) {
       setSelectedOptions([]);
+      return;
     }
 
     const newSelection = selectedOptions.includes(option)
@@ -842,6 +844,248 @@ const SliderInput: React.FC<SliderInputProps> = ({
   );
 };
 
+interface CheckboxSliderProps {
+  label: string;
+  tooltip?: string;
+  id: string;
+  checkboxId: string;
+  min: number;
+  max: number;
+  step: number;
+  defaultValue: number;
+  newValue: number;
+  storeChange?: (id: string, value: string) => void;
+  loadChange?: (id: string) => Promise<string | null>;
+}
+
+const CheckboxSlider: React.FC<CheckboxSliderProps> = ({
+  label = "Slider",
+  tooltip,
+  id,
+  checkboxId,
+  min = 0,
+  max = 100,
+  step = 1,
+  defaultValue = 0,
+  newValue,
+  storeChange,
+  loadChange,
+}) => {
+  const [value, setValue] = useState(defaultValue);
+  const [checked, setChecked] = useState(false);
+  const [intervalId, setIntervalId] = useState(0);
+  const [timeoutId, setTimeoutId] = useState(0);
+
+  useEffect(() => {
+    async function loadChanges() {
+      var savedValue = loadChange !== undefined ? await loadChange(id) : null;
+
+      if (savedValue === null) savedValue = localStorage.getItem(id);
+
+      if (savedValue) {
+        if (storeChange !== undefined) {
+          storeChange(id, savedValue);
+        }
+        setValue(Math.min(max, Math.max(min, parseFloat(savedValue))));
+      } else {
+        if (storeChange !== undefined) {
+          storeChange(id, "0");
+        }
+        setValue(0);
+      }
+
+      var savedStringValue =
+        loadChange !== undefined ? await loadChange(checkboxId) : null;
+
+      if (savedStringValue === null)
+        savedStringValue = localStorage.getItem(checkboxId);
+
+      const savedCheckboxValue = savedStringValue == "true" ? true : false;
+
+      if (savedStringValue) {
+        if (storeChange !== undefined) {
+          storeChange(id, savedStringValue);
+        }
+        setChecked(savedCheckboxValue);
+      } else {
+        if (storeChange !== undefined) {
+          storeChange(id, "false");
+        }
+        setChecked(false);
+      }
+    }
+
+    loadChanges();
+    // Load saved value from localStorage when component mounts
+  }, [id, checkboxId, loadChange, storeChange, max, min]);
+
+  useEffect(() => {
+    async function loadChecked() {
+      var savedStringValue =
+        loadChange !== undefined ? await loadChange(checkboxId) : null;
+
+      if (savedStringValue === null)
+        savedStringValue = localStorage.getItem(checkboxId);
+
+      const savedCheckboxValue = savedStringValue == "true" ? true : false;
+
+      if (savedStringValue) {
+        if (storeChange !== undefined) {
+          storeChange(id, savedStringValue);
+        }
+        setChecked(savedCheckboxValue);
+      } else {
+        if (storeChange !== undefined) {
+          storeChange(id, "false");
+        }
+        setChecked(false);
+      }
+    }
+
+    setValue(newValue);
+    loadChecked();
+  }, [newValue, id, checkboxId, loadChange, storeChange, max, min]);
+
+  const handleChangeSlider = (newValue: number[]) => {
+    setValue(newValue[0]);
+    if (storeChange !== undefined) {
+      storeChange(id, newValue[0].toString());
+    }
+    localStorage.setItem(id, newValue[0].toString()); // Save to localStorage
+  };
+
+  const handleChangeInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    var newValue = event.target.value;
+
+    if (newValue == "") {
+      newValue = `${min}`;
+    }
+
+    setValue(parseFloat(newValue));
+    if (storeChange !== undefined) {
+      storeChange(id, newValue);
+    }
+    localStorage.setItem(id, newValue); // Save to localStorage
+  };
+
+  const handleChevronClick = (
+    event: React.MouseEvent<SVGElement, MouseEvent>
+  ) => {
+    const chevronId = event.currentTarget.id;
+    var newValue = value;
+
+    if (chevronId == "leftChevron") {
+      newValue -= step;
+    } else {
+      newValue += step;
+    }
+
+    newValue = Math.min(max, Math.max(min, newValue));
+
+    setValue(newValue);
+    if (storeChange !== undefined) {
+      storeChange(id, newValue.toString());
+    }
+    localStorage.setItem(id, newValue.toString()); // Save to localStorage
+  };
+
+  const handleChevronDown = (
+    event: React.MouseEvent<SVGElement, MouseEvent>
+  ) => {
+    const chevronId = event.currentTarget.id;
+    const chevronTimeoutId = window.setTimeout(() => {
+      var newValue = value;
+      const chevronIntervalId = window.setInterval(() => {
+        if (chevronId == "leftChevron") {
+          newValue -= step;
+        } else {
+          newValue += step;
+        }
+
+        newValue = Math.min(max, Math.max(min, newValue));
+        if (newValue === min || newValue === max)
+          clearInterval(chevronIntervalId);
+
+        setValue(newValue);
+      }, 25); // Adjust the interval as needed
+      setIntervalId(chevronIntervalId);
+    }, 250);
+
+    setTimeoutId(chevronTimeoutId);
+  };
+
+  const handleChevronUp = (event: React.MouseEvent<SVGElement, MouseEvent>) => {
+    clearTimeout(timeoutId);
+    clearInterval(intervalId);
+    localStorage.setItem(id, value.toString()); // Save to localStorage
+  };
+
+  const handleCheckedChange = (checked: boolean) => {
+    console.log(checked, checkboxId);
+    setChecked(checked);
+    if (storeChange !== undefined) {
+      storeChange(checkboxId, checked ? "true" : "false");
+    }
+    localStorage.setItem(checkboxId, checked ? "true" : "false"); // Save to localStorage
+  };
+
+  return (
+    <div className="flex w-[100%] gap-[62px] h-20 bg-[rgba(0,0,0,0.6)] z-3 justify-center items-center">
+      <div className="w-[120px] align-middle flex items-center ml-8">
+        <Label
+          label={label}
+          htmlFor={id}
+          tooltip={tooltip}
+          className="block w-full text-left"
+        />
+        <Checkbox
+          checked={checked}
+          onCheckedChange={handleCheckedChange}
+          id={checkboxId}
+          className="w-[32px] h-[32px] bg-white/[0.1] border-2 border-zinc-400"
+        />
+      </div>
+      <div className="w-[920px] flex flex-row items-center">
+        <Slider
+          className="w-[820px] border-none outline-none ring-0"
+          onValueChange={handleChangeSlider}
+          value={[value]}
+          min={min}
+          max={max}
+          step={step}
+        />
+        <div className="w-[100px] flex flex-row items-center justify-between">
+          <FiChevronLeft
+            className="cursor-pointer select-none"
+            id="leftChevron"
+            onMouseDown={handleChevronDown}
+            onMouseUp={handleChevronUp}
+            onMouseLeave={handleChevronUp}
+            onClick={handleChevronClick}
+          />
+          <input
+            className="w-12 text-center bg-transparent outline-none"
+            id={id}
+            type="number"
+            min={min}
+            max={max}
+            onChange={handleChangeInput}
+            value={value}
+          />
+          <FiChevronRight
+            className="cursor-pointer select-none"
+            id="rightChevron"
+            onMouseDown={handleChevronDown}
+            onMouseUp={handleChevronUp}
+            onMouseLeave={handleChevronUp}
+            onClick={handleChevronClick}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface ImageInputOptionsProps {
   label: string;
   image: string;
@@ -890,18 +1134,21 @@ const ImageDropdownInput: React.FC<ImageInputProps> = ({
   const [image, setImage] = useState(options[0].image);
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
 
-  const selectOption = (index: number, callback: boolean = true) => {
-    setValue(options[index].label);
-    setImage(`${options[index].image}?${"input"}`); //options[index].image);
+  const selectOption = useCallback(
+    (index: number, callback: boolean = true) => {
+      setValue(options[index].label);
+      setImage(`${options[index].image}?${"input"}`); //options[index].image);
 
-    if (storeChange !== undefined) {
-      storeChange(id, JSON.stringify(options[index]));
-    }
+      if (storeChange !== undefined) {
+        storeChange(id, JSON.stringify(options[index]));
+      }
 
-    localStorage.setItem(id, JSON.stringify(options[index]));
+      localStorage.setItem(id, JSON.stringify(options[index]));
 
-    if (onFileSelect && callback) onFileSelect(options[index]);
-  };
+      if (onFileSelect && callback) onFileSelect(options[index]);
+    },
+    [id, onFileSelect, options, storeChange]
+  );
 
   useEffect(() => {
     async function loadOption() {
@@ -911,8 +1158,11 @@ const ImageDropdownInput: React.FC<ImageInputProps> = ({
 
       if (savedValue === null) savedValue = localStorage.getItem(id);
 
+      console.log("savedValue", savedValue);
+
       if (!savedValue) {
         selectOption(0, false);
+        forceUpdate();
         return;
       }
 
@@ -920,22 +1170,46 @@ const ImageDropdownInput: React.FC<ImageInputProps> = ({
         savedOption = JSON.parse(savedValue);
       } catch (error) {
         selectOption(0, false);
+        forceUpdate();
         return;
       }
+
+      if (savedOption === null) {
+        selectOption(0, false);
+        forceUpdate();
+        return;
+      }
+
+      console.log("savedOption", savedOption);
+      console.log("options", options);
 
       let savedOptionIndex = options.findIndex(
         (option) => option.label === savedOption.label
       );
+      console.log("savedOptionIndex", savedOptionIndex);
+
+      forceUpdate();
 
       if (savedOptionIndex === -1) return;
 
       selectOption(savedOptionIndex, false);
+      forceUpdate();
     }
 
     loadOption();
     // Load saved value from localStorage when component mounts
     // const savedOption = localStorage.getItem(id);
-  });
+  }, [options, id, loadChange, selectOption]);
+
+  // New effect to handle changes in options
+  useEffect(() => {
+    console.log("JSON options", JSON.parse(JSON.stringify(options)));
+
+    if (options.length > 0) {
+      setValue(options[0].label);
+      setImage(options[0].image);
+    }
+  }, [options]);
 
   const uploadFile = async () => {
     const imagePath = await Open({
@@ -1212,6 +1486,7 @@ export {
   TextInput,
   CheckboxButton,
   SliderInput,
+  CheckboxSlider,
   Dropdown,
   MultiSelectDropdown,
   ImageDropdownInput,

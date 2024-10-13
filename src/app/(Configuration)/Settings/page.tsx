@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox"; //chadcn
 import Sidebar from "@/components/ui/sidebar/sidebar";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { decode } from "base64-arraybuffer";
@@ -24,6 +24,7 @@ import {
 import {
   TextInput,
   CheckboxButton,
+  CheckboxSlider,
   Dropdown,
   SliderInput,
   ImageDropdownInput,
@@ -62,8 +63,11 @@ export default function Home() {
   ]);
 
   const [hideSubtitles, setHideSubtitles] = useState<boolean>(false);
+  const [subtitleOffset, setSubtitleOffset] = useState<number>(0);
 
   const store = new Store(".settings.dat");
+
+  const storeRef = useRef(new Store(".settings.dat"));
 
   // const createBackgroundsDir = async () => {
   //   try {
@@ -216,6 +220,16 @@ export default function Home() {
     return option;
   };
 
+  listen("current-song-offset", async (event) => {
+    try {
+      const current_song_offset = parseInt(JSON.parse(event.payload as string));
+
+      setSubtitleOffset(current_song_offset);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
   listen("current-song-updated", async (event) => {
     try {
       const current_song_data = JSON.parse(event.payload as string);
@@ -242,105 +256,6 @@ export default function Home() {
     }
   });
 
-  useEffect(() => {
-    let options: Array<ImageInputOptionsProps> = [];
-
-    options.push({
-      label: "Default",
-      image: "/assets/backgrounds/default.png",
-      extension: "png",
-      removeable: false,
-      editeable: false,
-      path: "/assets/backgrounds/default.png",
-      static: true,
-    });
-
-    options.push({
-      label: "Current Song Cover",
-      image: "/assets/backgrounds/default.png",
-      extension: "png",
-      removeable: false,
-      editeable: false,
-      path: null,
-      static: true,
-    });
-
-    async function loadCoverOption() {
-      const current_song_data_string = await invoke("get_current_song");
-
-      const current_song_data = JSON.parse(current_song_data_string as string);
-
-      const images = current_song_data?.item?.album?.images;
-
-      console.log(images);
-
-      if (images && images.length > 0) {
-        options[1].image = images[0].url;
-        options[1].path = images[0].url;
-      }
-
-      setBackgroundOptions(options);
-    }
-
-    async function loadBackgroundOptions() {
-      // const current_song_data_string = await invoke("get_current_song");
-
-      // const current_song_data = JSON.parse(current_song_data_string as string);
-
-      // const images = current_song_data?.item?.album?.images;
-
-      // if (images && images.length > 0) {
-      //   options[1].image = images[0];
-      //   options[1].path = images[0];
-      // }
-
-      // console.log("current_song_data", current_song_data?.item?.album?.images);
-
-      // const result = await invoke<string>("get_backgrounds", {});
-
-      setHideSubtitles(
-        (await loadChange("hideSubtitles")) === "true" ? true : false
-      );
-
-      const pathModule = await import("@tauri-apps/api/path");
-
-      const appDataDirPath = await pathModule.appDataDir();
-
-      const assetImages = await readDir("assets/backgrounds/", {
-        dir: BaseDirectory.AppData,
-        recursive: false,
-      });
-
-      assetImages.forEach(async (entry) => {
-        const extension = (entry.name || "Name.png").split(".").pop() || "png";
-
-        if (entry.name) {
-          options.push({
-            label: (entry.name || "Name.png").split(".").slice(0, -1).join("."),
-            image:
-              extension === "mp4"
-                ? "assets/backgrounds/fallback.png"
-                : convertFileSrc(
-                    `${appDataDirPath}assets\\thumbnails\\${
-                      entry.name.split(".")[0] as string
-                    }.png`
-                  ),
-            extension: extension,
-            removeable: true,
-            editeable: true,
-            path: entry.path,
-            static: false,
-          });
-        }
-      });
-
-      setBackgroundOptions(options);
-    }
-
-    loadBackgroundOptions();
-    loadCoverOption();
-  }, []);
-
   const storeChange = async (id: string, value: string) => {
     // console.log(id, value, "storechange");
     await store.set(id, value);
@@ -348,10 +263,91 @@ export default function Home() {
   };
 
   const loadChange = async (id: string): Promise<string | null> => {
-    const value = await store.get(id);
+    // const value = await store.get(id);
     // console.log(id, value, "storeget");
     return await store.get(id);
   };
+
+  useEffect(() => {
+    let store = storeRef.current;
+
+    const loadCoverOption = async () => {
+      const current_song_data_string = await invoke("get_current_song");
+      const current_song_data = JSON.parse(current_song_data_string as string);
+      const images = current_song_data?.item?.album?.images;
+
+      if (images && images.length > 0) {
+        return {
+          label: "Current Song Cover",
+          image: images[0].url,
+          extension: "png",
+          removeable: false,
+          editeable: false,
+          path: images[0].url,
+          static: true,
+        };
+      }
+
+      return null; // Fallback if no images are found
+    };
+
+    const loadBackgroundOptions = async () => {
+      const res = await store.get("hideSubtitles");
+      setHideSubtitles(res === "true");
+
+      const pathModule = await import("@tauri-apps/api/path");
+      const appDataDirPath = await pathModule.appDataDir();
+
+      const assetImages = await readDir("assets/backgrounds/", {
+        dir: BaseDirectory.AppData,
+        recursive: false,
+      });
+
+      const options: Array<ImageInputOptionsProps> = [
+        {
+          label: "Default",
+          image: "/assets/backgrounds/default.png",
+          extension: "png",
+          removeable: false,
+          editeable: false,
+          path: "/assets/backgrounds/default.png",
+          static: true,
+        },
+      ];
+
+      const coverOption = await loadCoverOption();
+      if (coverOption) {
+        options.push(coverOption);
+      }
+
+      const backgroundOptionsPromises = assetImages.map(async (entry) => {
+        const entryName = entry.name || "Unnamed Image"; // Fallback if entry.name is undefined
+        const extension = entryName.split(".").pop() || "png";
+
+        return {
+          label: entryName.split(".").slice(0, -1).join("."),
+          image:
+            extension === "mp4"
+              ? "assets/backgrounds/fallback.png"
+              : convertFileSrc(
+                  `${appDataDirPath}assets\\thumbnails\\${
+                    entryName.split(".")[0]
+                  }.png`
+                ),
+          extension: extension,
+          removeable: true,
+          editeable: true,
+          path: entry.path,
+          static: false,
+        };
+      });
+
+      const backgroundOptions = await Promise.all(backgroundOptionsPromises);
+      setBackgroundOptions([...options, ...backgroundOptions]);
+    };
+
+    loadBackgroundOptions();
+  }, [setBackgroundOptions, setHideSubtitles]);
 
   return (
     <div className=" h-screen overflow-y-scroll overflow-x-hidden scrollbar-hide">
@@ -544,7 +540,7 @@ export default function Home() {
           }}
           loadChange={loadChange}
         />
-        <SliderInput
+        {/* <SliderInput
           label="Subtitle Offset"
           tooltip="Offsets the time for the lyrics to display in milliseconds, this can help if the lyrics is out of sync."
           id="subtitleOffset"
@@ -556,6 +552,32 @@ export default function Home() {
             await invoke("set_subtitle_offset", {
               newOffset: parseInt(value),
             });
+            await storeChange(id, value);
+            emit(id, value);
+          }}
+          loadChange={loadChange}
+        /> */}
+        <CheckboxSlider
+          label="Subtitle Offset"
+          tooltip="Offsets the time for the lyrics to display in milliseconds; this can help if the lyrics are out of sync."
+          id="subtitleOffset"
+          min={-10000}
+          max={10000}
+          defaultValue={0}
+          step={100}
+          checkboxId="subtitleOffsetCheckbox"
+          newValue={subtitleOffset}
+          storeChange={async (id: string, value: string) => {
+            if (id === "subtitleOffset" && parseInt(value) !== null) {
+              console.log("value", value);
+              await invoke("set_subtitle_offset", {
+                newOffset: parseInt(value),
+              });
+            } else {
+              await invoke("set_save_subtitle_offset", {
+                save: value === "true",
+              });
+            }
             await storeChange(id, value);
             emit(id, value);
           }}

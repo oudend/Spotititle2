@@ -27,7 +27,7 @@ You can enhance the "Get the SP DC token" section by making it more descriptive 
 
 ## Get the SP DC Token
 
-To obtain the `sp_dc` token on chrome, follow these steps:
+To obtain the `sp_dc` token on _chrome_, follow these steps:
 
 1. **Open an Incognito Window:**
 
@@ -157,4 +157,4 @@ This project is licensed under the Mozilla Public License Version 2.0 License. S
 
 ## Contact
 
-If you have any questions, feel free to open an issue or contact me on Discord: `oudend`.
+If you have any questions, feel free to open an issue or contact me on Discord: `@oudend`.

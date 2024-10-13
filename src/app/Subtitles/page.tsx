@@ -13,7 +13,6 @@ import { Store } from "tauri-plugin-store-api";
 import { emit, listen } from "@tauri-apps/api/event";
 
 export default function Home() {
-  const [opacity, setOpacity] = useState(1.0);
   const [fontSize, setFontSize] = useState(10.0);
   const [subtitle, setSubtitle] = useState("subtitles");
   const [subtitleKey, setSubtitleKey] = useState("0");
@@ -35,10 +34,6 @@ export default function Home() {
       const fontSize = await store.get("fontSize");
 
       setFontSize(Math.min(Math.max(10, fontSize as number), 100));
-
-      const opacity = await store.get("backgroundOpacity");
-
-      setOpacity((opacity as number) / 100);
 
       const hideSubtitles =
         (await store.get("hideSubtitles")) === "true" ? true : false;
@@ -139,11 +134,6 @@ export default function Home() {
     listen("fontSize", (event) => {
       //? validation required
       setFontSize(Math.min(Math.max(10, event.payload as number), 100));
-    });
-
-    listen("backgroundOpacity", (event) => {
-      //? validation required
-      setOpacity((event.payload as number) / 100);
     });
 
     listen("hideSubtitles", async (event) => {
