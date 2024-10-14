@@ -8,8 +8,6 @@ Spotititle is a Tauri-based application designed to display realtime song lyrics
 ![Home](./assets/images/home.png)
 ![Settings](./assets/images/settings.png)
 
-You can enhance the "Get the SP DC token" section by making it more descriptive and formatting it cleanly. Additionally, ensure the Table of Contents link works correctly. Here's a revision for both:
-
 ### Table of Contents
 
 - [Get the SP DC Token](#get-the-sp-dc-token)
