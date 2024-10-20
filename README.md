@@ -8,6 +8,10 @@ Spotititle is a Tauri-based application designed to display realtime song lyrics
 ![Home](./assets/images/home.png)
 ![Settings](./assets/images/settings.png)
 
+[![GitHub License](https://img.shields.io/github/license/oudend/spotititle2?style=for-the-badge)](./LICENSE)
+![Next JS](https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white)
+![Tauri](https://img.shields.io/badge/tauri-%2324C8DB.svg?style=for-the-badge&logo=tauri&logoColor=%23FFFFFF)
+
 ### Table of Contents
 
 - [Get the SP DC Token](#get-the-sp-dc-token)
@@ -156,3 +160,5 @@ This project is licensed under the Mozilla Public License Version 2.0 License. S
 ## Contact
 
 If you have any questions, feel free to open an issue or contact me on Discord: `@oudend`.
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](buymeacoffee.com/oudend)
