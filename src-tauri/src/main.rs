@@ -290,6 +290,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         let subtitle_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffset");
 
         let save_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffsetSync");
+
+
+        // Get the app's data directory
+        if let Some(app_data_dir) = app.path_resolver().app_data_dir() {
+            // Create the file path for log.txt
+            let log_path = app_data_dir.join("log.txt");
+
+            // Open or clear the log file
+            match OpenOptions::new().write(true).create(true).truncate(true).open(&log_path) {
+                Ok(_) => println!("Log file initialized and cleared."),
+                Err(e) => eprintln!("Failed to initialize log file: {}", e),
+            }
+        } else {
+            eprintln!("Failed to determine app data directory.");
+        }
         
 
         // Spawn an asynchronous task
