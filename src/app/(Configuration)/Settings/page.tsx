@@ -288,7 +288,15 @@ export default function Home() {
         };
       }
 
-      return null; // Fallback if no images are found
+      return {
+        label: "Current Song Cover",
+        image: "/assets/backgrounds/default.png",
+        extension: "png",
+        removeable: false,
+        editeable: false,
+        path: "/assets/backgrounds/default.png",
+        static: true,
+      }; // Fallback if no images are found
     };
 
     const loadBackgroundOptions = async () => {
@@ -540,7 +548,7 @@ export default function Home() {
           }}
           loadChange={loadChange}
         />
-        {/* <SliderInput
+        <SliderInput
           label="Subtitle Offset"
           tooltip="Offsets the time for the lyrics to display in milliseconds, this can help if the lyrics is out of sync."
           id="subtitleOffset"
@@ -556,8 +564,8 @@ export default function Home() {
             emit(id, value);
           }}
           loadChange={loadChange}
-        /> */}
-        <CheckboxSlider
+        />
+        {/* <CheckboxSlider
           label="Subtitle Offset"
           tooltip="Offsets the time for the lyrics to display in milliseconds; this can help if the lyrics are out of sync."
           id="subtitleOffset"
@@ -582,7 +590,22 @@ export default function Home() {
             emit(id, value);
           }}
           loadChange={loadChange}
+        /> */}
+
+        <Dropdown
+          label="Subtitle Offset Syncing"
+          tooltip="How and if the Subtitle Offset should be synced"
+          id="subtitleOffsetSync"
+          options={["none", "song"]}
+          storeChange={async (id: string, value: string) => {
+            await invoke("set_save_subtitle_offset", {
+              save: value === "song",
+            });
+            await storeChange(id, value);
+          }}
+          loadChange={loadChange}
         />
+
         <div className="flex w-[100%] gap-[62px] h-20 bg-[rgba(0,0,0,0.6)] z-3 justify-center items-center">
           <Label
             htmlFor=""

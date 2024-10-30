@@ -1,5 +1,9 @@
 # Spotititle 2
 
+[![GitHub License](https://img.shields.io/github/license/oudend/spotititle2?style=for-the-badge)](./LICENSE)
+![Next JS](https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white)
+![Tauri](https://img.shields.io/badge/tauri-%2324C8DB.svg?style=for-the-badge&logo=tauri&logoColor=%23FFFFFF)
+
 Spotititle is a Tauri-based application designed to display realtime song lyrics in a subtitle window. It uses a [SP DC token](#get-the-sp-dc-token) that allows the backend to fetch the current song playing and its corresponding lyrics. The app consists of two windows: one for configuring settings, and handling the SP DC token, and another to display the subtitles.
 
 > Spotititle 2 is a feature-complete upgrade of a C++ project called [Spotititle](https://github.com/oudend/spotititle).
@@ -7,10 +11,6 @@ Spotititle is a Tauri-based application designed to display realtime song lyrics
 ![Demo](./assets/images/demo.gif)
 ![Home](./assets/images/home.png)
 ![Settings](./assets/images/settings.png)
-
-[![GitHub License](https://img.shields.io/github/license/oudend/spotititle2?style=for-the-badge)](./LICENSE)
-![Next JS](https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white)
-![Tauri](https://img.shields.io/badge/tauri-%2324C8DB.svg?style=for-the-badge&logo=tauri&logoColor=%23FFFFFF)
 
 ### Table of Contents
 

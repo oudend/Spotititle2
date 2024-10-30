@@ -1,22 +1,19 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-// use std::path::{Path, PathBuf};
 use once_cell::sync::OnceCell;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use lazy_static::lazy_static;
 use tauri::{Manager, WindowEvent};
-use std::{cmp, collections::HashMap, path::{Path, PathBuf}};
-use tokio::sync::mpsc;
+use std::{cmp, path::{Path, PathBuf}};
 use std::time::Duration;
-// use tauri_plugin_store::StoreBuilder;
 use tauri::Wry;
 use tauri_plugin_store::{with_store, StoreCollection};
-
 use wana_kana::ConvertJapanese;
-use pinyin::{ToPinyin, ToPinyinMulti, Pinyin};
-use cjk::{is_japanese, is_korean, is_simplified_chinese, is_traditional_chinese, to_pinyin};
+use pinyin::ToPinyin;
+use std::fs::{OpenOptions, create_dir_all};
+use std::io::Write; // Bring the Write trait into scope
 
 
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
@@ -40,18 +37,13 @@ async fn refresh_spotify_token(sp_dc: &str) -> Result<(), String> {
 
 #[tauri::command]
 async fn get_current_song() -> Result<String, String> {
-    let mut global_current_song = CURRENT_SONG.lock().await;
-    return Ok(global_current_song.to_string());
-
     if let Some(spotify) = SPOTIFY.get() {
         let spotify = spotify.lock().await;
         let song_data = match spotify.get_currently_playing().await {
             Ok(current_song) => {
-                // println!("Currently playing song: {:?}", current_song);
                 current_song
             },
             Err(e) => {
-                // eprintln!("Failed to get currently playing song: {}", e);
                 return Err(format!("Failed to get currently playing song: {}", e))
             }
         };
@@ -67,7 +59,6 @@ async fn get_song_lyrics(song_id: &str) -> Result<String, String> {
         let spotify = spotify.lock().await;
         let song_lyrics = match spotify.get_lyrics(song_id).await {
             Ok(lyrics) => {
-                // println!("Currently playing song's lyrics: {:?}", lyrics);
                 lyrics
             },
             Err(e) => {
@@ -113,6 +104,32 @@ fn get_store_value(
     })
 }
 
+fn log_to_debug(app_handle: &tauri::AppHandle, debug_text: String) {
+    // Get the app data directory
+    if let Some(app_data_dir) = app_handle.path_resolver().app_data_dir() {
+        // Ensure the directory exists
+        if let Err(e) = create_dir_all(&app_data_dir) {
+            println!("Failed to create app data directory: {}", e);
+        }
+
+        // Open (or create and append to) the log file
+        let log_path = app_data_dir.join("log.txt");
+        if let Ok(mut file) = OpenOptions::new().append(true).create(true).open(&log_path) {
+            if let Err(e) = writeln!(file, "{}", debug_text) {
+                println!("Failed to write to log file: {}", e);
+            }
+        } else {
+            println!("Failed to open or create log file.");
+        }
+    } else {
+        println!("App data directory could not be determined.");
+    }
+
+    // Print to console and emit to frontend
+    println!("debug: {}", debug_text);
+    app_handle.emit_all("debug", debug_text).unwrap();
+}
+
 async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_lyric_index: i16, lyric_display_time: u64) {
     let stores = app_handle.state::<StoreCollection<Wry>>();
     let path = PathBuf::from(".settings.dat");
@@ -124,7 +141,7 @@ async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_l
             value.as_array().cloned().unwrap_or_else(Vec::new)
         }
         Err(e) => {
-            println!("Could not retrieve subtitle conversions. {}", e);
+            log_to_debug(app_handle, format!("Could not retrieve subtitle conversions. {}", e));
             Vec::new()
         }
     };
@@ -164,7 +181,7 @@ async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_l
                 "KanjiToRomaji" => {
                     if detected_language == Some("Japanese") {
                         new_lyric_text = new_lyric_text.to_romaji();
-                        println!("Handling KanjiToRomaji conversion {}", new_lyric_text);
+                        log_to_debug(app_handle, format!("Handling KanjiToRomaji conversion {}", new_lyric_text));
                     }
 
                     // Handle KanjiToRomaji logic here
@@ -183,18 +200,18 @@ async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_l
                                 }
                             })
                             .collect();
-
-                        println!("Handling toPinyin conversion {}", new_lyric_text);
+                        
+                        log_to_debug(app_handle, format!("Handling toPinyin conversion {}", new_lyric_text));
                     }
 
                     // Handle blatobla logic here
                 }
                 other => {
-                    println!("Unknown conversion: {}", other);
+                    log_to_debug(app_handle, format!("Unknown conversion: {}", other));
                 }
             }
         } else {
-            println!("Invalid conversion type, not a string");
+            log_to_debug(app_handle, "Invalid conversion type, not a string".to_string());
         }
     }
 
@@ -210,18 +227,14 @@ async fn send_lyric(app_handle: &tauri::AppHandle, lyric_text: String, current_l
 lazy_static! {
     static ref UPDATE_INTERVAL: Mutex<u64> = Mutex::new(1000); // Default value 1000ms
     static ref SUBTITLE_OFFSET: Mutex<i64> = Mutex::new(0); // Default value 1000ms
-    static ref SUBTITLE_OFFSETS: Mutex<HashMap<String, i64>> = Mutex::new(HashMap::new()); // Default value 1000ms
     static ref SAVE_SUBTITLE_OFFSET: Mutex<bool> = Mutex::new(false);
     static ref SAVE_SUBTITLE_OFFSET_UPDATE: Mutex<bool> = Mutex::new(false);
-    static ref CURRENT_SONG: Mutex<Value> = Mutex::new(Value::Null); // Default value 1000ms
 }
 
 #[tauri::command]
 async fn set_update_interval(new_interval: u64) {
     let mut interval = UPDATE_INTERVAL.lock().await; // Await the lock
     *interval = new_interval;
-
-    // println!("set_update_interval: {}", interval);
 }
 
 #[tauri::command]
@@ -260,6 +273,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         let mut current_lyric_index: i16 = -1;
         
         let mut progress: u64 = 0;
+
+        let mut song_id: String = String::new();
         
         let spotify_instance = spotify::Spotify::new();
         SPOTIFY.set(Mutex::new(spotify_instance)).unwrap();
@@ -268,17 +283,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         let stores = app.state::<StoreCollection<Wry>>();
         let path = PathBuf::from(".settings.dat");
 
-        // let app_handle_clone = app_handle.clone(); // Clone the handle to avoid borrowing issues
-
         // Get the "updateInterval" from the store
         let update_interval_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "updateInterval");
 
         // Get the "subtitleOffset" from the store
         let subtitle_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffset");
 
-        let subtitle_offsets_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffsets");
-
-        let save_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffsetCheckbox");
+        let save_offset_result = get_store_value(app_handle.clone(), stores.clone(), path.clone(), "subtitleOffsetSync");
         
 
         // Spawn an asynchronous task
@@ -287,109 +298,69 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
             // Handle the result of the operation
             match update_interval_result {
                 Ok(stored_update_interval) => {
-                    println!("stored_update_interval: {}", stored_update_interval);
+                    log_to_debug(&app_handle, format!("stored_update_interval: {}", stored_update_interval));
 
                     // Assuming UPDATE_INTERVAL is a Mutex<u64> 
                     let mut interval = UPDATE_INTERVAL.lock().await; // Await the lock
                     if let Some(str_value) = stored_update_interval.as_str() {
                         match str_value.parse::<u64>() {
                             Ok(u64_value) => {
-                                println!("stored update interval: {:?}", u64_value);
+                                log_to_debug(&app_handle, format!("stored update interval: {:?}", u64_value));
+
                                 *interval = u64_value; // Update the mutable variable
                             }
                             Err(e) => {
-                                println!("Stored update interval is not a valid u64. {}", e);
+                                log_to_debug(&app_handle, format!("Stored update interval is not a valid u64. {}", e));
                             }
                         }
-                        // if Ok(u64_value) = str_value.parse::<u64>() {
-                        //     println!("stored update interval: {:?}", u64_value);
-                        //     *interval = u64_value; // Update the mutable variable
-                        // }
                     } else {
-                        println!("Stored update interval is not a valid str.");
+                        log_to_debug(&app_handle, "Stored update interval is not a valid str.".to_string());
                     }
                 }
                 Err(e) => {
                     // Handle the error case
-                    println!("Error retrieving update interval: {:?}", e);
+                    log_to_debug(&app_handle, format!("Error retrieving update interval: {:?}", e));
                 }
             }
             match subtitle_offset_result {
                 Ok(stored_subtitle_offset) => {
-                    // println!("stored_update_interval: {}", stored_subtitle_offset);
 
                     // Assuming UPDATE_INTERVAL is a Mutex<u64>
                     let mut offset = SUBTITLE_OFFSET.lock().await; // Await the lock
                     if let Some(str_value) = stored_subtitle_offset.as_str() {
                         match str_value.parse::<i64>() {
                             Ok(i64_value) => {
-                                println!("stored subtitle offset: {:?}", i64_value);
+                                log_to_debug(&app_handle, format!("stored subtitle offset: {:?}", i64_value));
                                 *offset = i64_value; // Update the mutable variable
                             }
                             Err(e) => {
-                                println!("Stored update interval is not a valid u64. {}", e);
+                                log_to_debug(&app_handle, format!("Stored update interval is not a valid u64. {}", e));
                             }
                         }
-                        // if Ok(u64_value) = str_value.parse::<u64>() {
-                        //     println!("stored update interval: {:?}", u64_value);
-                        //     *interval = u64_value; // Update the mutable variable
-                        // }
                     } else {
-                        println!("Stored update interval is not a valid str.");
+                        log_to_debug(&app_handle, "Stored update interval is not a valid str.".to_string());
                     }
                 }
                 Err(e) => {
-                    // Handle the error case
-                    println!("Error retrieving update interval: {:?}", e);
+                    log_to_debug(&app_handle, format!("Error retrieving update interval: {:?}", e));
                 }
             }
             match save_offset_result {
                 Ok(stored_save_offset) => {
-                    // println!("stored_update_interval: {}", stored_subtitle_offset);
-
-                    // Assuming UPDATE_INTERVAL is a Mutex<u64>
                     let mut save_offset = SAVE_SUBTITLE_OFFSET.lock().await; // Await the lock
                     if let Some(bool_value) = stored_save_offset.as_str() {
-                        *save_offset = bool_value.eq("true"); // Update the mutable variable
+                        *save_offset = bool_value.eq("song"); // Update the mutable variable
                     } else {
-                        println!("Stored save offset is not a valid bool.");
+                        log_to_debug(&app_handle, "Stored save offset is not a valid bool.".to_string());
                     }
                 }
                 Err(e) => {
-                    // Handle the error case
-                    println!("Error retrieving save offset: {:?}", e);
-                }
-            }
-            match subtitle_offsets_result {
-                Ok(stored_subtitle_offsets) => {
-                    // println!("stored_update_interval: {}", stored_subtitle_offset);
-
-                    // Assuming UPDATE_INTERVAL is a Mutex<u64>
-                    let mut subtitle_offsets = SUBTITLE_OFFSETS.lock().await; // Await the lock
-                    if let Some(object_value) = stored_subtitle_offsets.as_object() {
-                        for (key, value) in object_value.iter() {
-                            // Check if the value is an i64
-                            if let Some(i64_value) = value.as_i64() {
-                                // Insert the key and value into the HashMap
-                                subtitle_offsets.insert(key.clone(), i64_value);
-                                println!("Stored subtitle offset for {}: {}", key, i64_value);
-                            } else {
-                                println!("Value for key '{}' is not a valid i64.", key);
-                            }
-                        }
-                    } else {
-                        println!("Stored subtitle offsets are not a valid JSON object.");
-                    }
-                }
-                Err(e) => {
-                    // Handle the error case
-                    println!("Error retrieving subtitle offsets: {:?}", e);
+                    log_to_debug(&app_handle, format!("Error retrieving save offset: {:?}", e));
                 }
             }
 
             loop {
                 let save_subtitle_offset = *SAVE_SUBTITLE_OFFSET.lock().await;
-                let mut subtitle_offsets = SUBTITLE_OFFSETS.lock().await;
                 let mut save_offset_update = SAVE_SUBTITLE_OFFSET_UPDATE.lock().await; // Await the lock
 
                 if let Some(spotify) = SPOTIFY.get() {
@@ -397,32 +368,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
         
                         if let Ok(current_song) = spotify.get_currently_playing().await {
                             // Emit an event for the current song
-                            let song_id =  current_song["item"]["id"].as_str().unwrap_or("").to_string();
+                            song_id =  current_song["item"]["id"].as_str().unwrap_or("").to_string();
 
                             progress = current_song["progress_ms"].as_u64().unwrap_or(0);
 
-                            // println!("progress: {}", progress);
-
                             if save_subtitle_offset && (last_song_id != song_id || *save_offset_update == true) {
                                 *save_offset_update = false;
-
-                                let offset = subtitle_offsets.entry(song_id.clone()).or_insert(0);
-
-                                let mut subtitle_offset = SUBTITLE_OFFSET.lock().await;
-                                *subtitle_offset = offset.clone();
 
                                 let offset_app_handle = app_handle.clone();
                                 let offset_stores = offset_app_handle.state::<StoreCollection<Wry>>();
                                 let offset_path = PathBuf::from(".settings.dat");
 
+                                let stored_offset = get_store_value(app_handle.clone(), offset_stores.clone(), path.clone(), &format!("song-{}", song_id));
+
+                                let offset = match stored_offset {
+                                    Ok(offset_value) => offset_value.as_i64().unwrap_or(0),
+                                    Err(err) => {
+                                        log_to_debug(&app_handle, format!("song offset could not be retrieved {}", err));
+                                        0
+                                    }
+                                };
+
+                                let mut subtitle_offset = SUBTITLE_OFFSET.lock().await;
+                                *subtitle_offset = offset.clone();
+
+
                                 match with_store(offset_app_handle.clone(), offset_stores.clone(), offset_path.clone(), |store| {
                                     store.insert("subtitleOffset".to_string(), json!(offset))
                                 }) {
                                     Ok(_) => {
-                                        println!("Successfully updated store.");
+                                        log_to_debug(&app_handle, "Successfully updated store.".to_string());
                                         with_store(offset_app_handle.clone(), offset_stores, offset_path, |store| store.save()).unwrap();
                                     },
-                                    Err(e) => println!("Failed to update store: {:?}", e),
+                                    Err(e) => log_to_debug(&app_handle, format!("Failed to update store: {:?}", e)),
                                 }
 
                                 app_handle.emit_all("current-song-offset", offset.clone()).unwrap();
@@ -431,64 +409,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             if last_song_id != song_id {
                                 song_duration = current_song["item"]["duration_ms"].as_u64().unwrap_or(u64::MAX);
 
-                                println!("song_duration: {}", song_duration);
+                                log_to_debug(&app_handle, format!("song_duration: {}", song_duration));
 
 
                                 last_song_id = song_id.clone();
                                 
-                                // println!("song changed: {}", song_id);
-
-                                let mut global_current_song = CURRENT_SONG.lock().await;
-                                
                                 app_handle.emit_all("current-song-updated", current_song.to_string()).unwrap();
-
-                                *global_current_song = current_song;
 
                                 song_lyrics = match spotify.get_lyrics(&song_id).await {
                                     Ok(lyrics) => {
-                                        // println!("Currently playing song's lyrics: {:?}", lyrics["lyrics"]["lines"]);
 
                                         app_handle.emit_all("current-song-lyrics", lyrics.to_string()).unwrap();
 
                                         if let Some(lines) = lyrics["lyrics"]["lines"].as_array() {
-                                            // println!("Currently playing song's lyrics: {:?}", song_lyrics);
 
                                             lines.clone()
                                         } else {
-                                            // println!("Lyrics or lines are missing.");
                                             Vec::new()
                                         }
                                     },
-                                    Err(e) => {
-                                        // println!("Could not get song lyrics: {:?}", e);
+                                    Err(_) => {
                                         Vec::new()
                                     }
                                 };
 
                                 current_lyric_index = -1;
-
-                                // for lyric in song_lyrics.iter() {
-                                //     // println!("{}", lyric["words"].as_str().unwrap_or("").to_string().to_romaji());
-
-                                //     let start_time = lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
-
-                                //     // println!("process: {}, {}", start_time, progress);
-
-                                //     if progress < start_time  {
-                                //         // println!("finished: {}, {}", start_time, progress);
-                                //         if current_lyric_index != -1 {
-                                //             let lyric_text = song_lyrics[current_lyric_index as usize]["words"].as_str().unwrap_or("").to_string();
-                                //             // println!("{}", lyric_text);
-                                //             send_lyric(&app_handle, lyric_text, current_lyric_index);
-                                //             // app_handle.emit_all("current-song-lyric-updated", lyric_text).unwrap();
-                                //         }
-
-                                //         break;
-                                //     }
-
-                                //     current_lyric_index += 1;
-                                // }
-
                             }
 
                         }
@@ -498,39 +443,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                         let subtitle_offset = *SUBTITLE_OFFSET.lock().await;
 
                         if save_subtitle_offset {
-                            let offset = subtitle_offsets.entry(last_song_id.clone()).or_insert(subtitle_offset);
-                            *offset = subtitle_offset;
-
-                            let json_value: tauri_plugin_store::JsonValue = serde_json::to_value(&*subtitle_offsets).unwrap();
-
                             let offset_app_handle = app_handle.clone();
                             let offset_stores = offset_app_handle.state::<StoreCollection<Wry>>();
                             let offset_path = PathBuf::from(".settings.dat");
 
                             match with_store(offset_app_handle.clone(), offset_stores.clone(), offset_path.clone(), |store| {
-                                store.insert("subtitleOffsets".to_string(), json_value)
+                                store.insert(format!("song-{}", song_id).to_string(), subtitle_offset.into())
                             }) {
                                 Ok(_) => {
-                                    println!("Successfully updated store.");
+                                    log_to_debug(&app_handle, "Successfully updated store.".to_string());
                                     with_store(offset_app_handle.clone(), offset_stores, offset_path, |store| store.save()).unwrap();
                                 },
-                                Err(e) => println!("Failed to update store: {:?}", e),
+                                Err(e) => log_to_debug(&app_handle, format!("Failed to update store: {:?}", e)),
                             }
                         }
-
-                        // let path = PathBuf::from(".settings.dat");
-
-                        // if save_subtitle_offset {
-                        //     match with_store(app_handle.clone(), stores.clone(), path.clone(), |store| {
-                        //         store.insert("subtitleOffset".to_string(), json!(subtitle_offset))
-                        //     }) {
-                        //         Ok(_) => {
-                        //             println!("Successfully updated store.");
-                        //             with_store(app_handle.clone(), stores.clone(), path, |store| store.save()).unwrap();
-                        //         },
-                        //         Err(e) => println!("Failed to update store: {:?}", e),
-                        //     }
-                        // }
 
                         let mut total_time_spent = 0;
 
@@ -546,25 +472,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             if let Some(next_lyric) = song_lyrics.get((current_lyric_index + 1) as usize) {
                                 let next_start_time = next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
 
-                                let mut next_lyric_display_time: u64 = (song_duration - next_start_time) ;
+                                let mut next_lyric_display_time: u64 = song_duration - next_start_time;
 
                                 if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 2) as usize) {
                                     let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
                                     //(next_next_start_time - next_start_time)
-                                    next_lyric_display_time = (next_next_start_time - next_start_time);
+                                    next_lyric_display_time = next_next_start_time - next_start_time;
                                 }
         
                             
 
                                 // let next_lyric_text = next_lyric["words"].as_str().unwrap_or("").to_romaji();
                                 let next_lyric_text = next_lyric["words"].as_str().unwrap_or("");
-    
-                                // println!("{} - {}, {}", next_start_time, progress, current_lyric_index);
 
                                 if let Some(current_lyric) = song_lyrics.get(current_lyric_index as usize) { //? check if progress was reversed by user
                                     let current_start_time = current_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
                                     if offset_progress < current_start_time {
-                                        println!("program fixed reversed progress: {}", next_lyric_text);
+                                        log_to_debug(&app_handle, format!("program fixed reversed progress: {}", next_lyric_text));
                                         current_lyric_index -= 1;
                                         continue;
                                     }
@@ -576,16 +500,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                                         let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
                                         let next_next_lyric_text = next_next_lyric["words"].as_str().unwrap_or("");
                                         
-                                        println!("offset_progress: {}, next_next_start_time: {}, next_next_lyric_text: {}", offset_progress, next_next_start_time, next_next_lyric_text);
+                                        log_to_debug(&app_handle, format!("offset_progress: {}, next_next_start_time: {}, next_next_lyric_text: {}", offset_progress, next_next_start_time, next_next_lyric_text));
                                         
                                         if offset_progress < next_next_start_time {
                                             next_lyric_display_time = next_next_start_time.saturating_sub(offset_progress);
-                                            println!("program fixed mistaken skip: {}", next_lyric_text);
-                                            // app_handle.emit_all("current-song-lyric-updated", next_lyric_text).unwrap();
+                                            log_to_debug(&app_handle, format!("program fixed mistaken skip: {}", next_lyric_text));
                                             send_lyric(&app_handle, next_lyric_text.to_string(), current_lyric_index, next_lyric_display_time).await;
                                         }
                                     }
-                                    println!("program fixed skipped progress: {}", next_lyric_text);
+                                    log_to_debug(&app_handle, format!("program fixed skipped progress: {}", next_lyric_text));
                                     current_lyric_index += 1;
                                     
 
@@ -602,11 +525,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
 
                                 progress += time_left;
 
-                                // println!("waiting for: {} ms until next line", time_left);
-
                                 tokio::time::sleep(Duration::from_millis(time_left)).await;
-
-                                // println!("{}", next_lyric_text);
 
                                 if let Some(next_next_lyric) = song_lyrics.get((current_lyric_index + 2) as usize) {
                                     let next_next_start_time = next_next_lyric["startTimeMs"].as_str().unwrap_or("0").parse::<u64>().unwrap();
@@ -624,12 +543,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
                             }
                         }
 
-                        println!("update_interval: {}", update_interval);
-            
-                        // Make sure you give time to other tasks by using yield_now()
-                        // tokio::task::yield_now().await;
-
-                        // Sleep for a bit before checking again
+                        log_to_debug(&app_handle, format!("update_interval: {}", update_interval));
+                        
                         tokio::time::sleep(Duration::from_millis(update_interval.saturating_sub(total_time_spent).saturating_sub(300))).await;
                     }
                 }
