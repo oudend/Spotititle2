@@ -13,7 +13,7 @@ import { Store } from "tauri-plugin-store-api";
 import { emit, listen } from "@tauri-apps/api/event";
 
 export default function Home() {
-  const [fontSize, setFontSize] = useState(10.0);
+  const [fontSize, setFontSize] = useState(36.0);
   const [subtitle, setSubtitle] = useState("subtitles");
   const [subtitleKey, setSubtitleKey] = useState("0");
   const [textBackground, setTextBackground] = useState(false);

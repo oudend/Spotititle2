@@ -123,8 +123,8 @@ impl Spotify {
             id
         );
 
-        println!("Request URL: {}", request_url);
-        println!("Authorization: {}", self.authorization_string);
+        // println!("Request URL: {}", request_url);
+        // println!("Authorization: {}", self.authorization_string);
 
         let response = client
             .get(&request_url)

@@ -711,15 +711,15 @@ const SliderInput: React.FC<SliderInputProps> = ({
         setValue(Math.min(max, Math.max(min, parseFloat(savedValue))));
       } else {
         if (storeChange !== undefined) {
-          storeChange(id, "0");
+          storeChange(id, `${defaultValue}`);
         }
-        setValue(0);
+        setValue(defaultValue);
       }
     }
 
     loadChanges();
     // Load saved value from localStorage when component mounts
-  }, [id, loadChange, storeChange, max, min]);
+  }, [id, loadChange, storeChange, max, min, defaultValue]);
 
   const handleChangeSlider = (newValue: number[]) => {
     setValue(newValue[0]);
