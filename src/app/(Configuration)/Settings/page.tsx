@@ -1,18 +1,12 @@
 "use client";
 
-import Image from "next/image";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox"; //chadcn
 import Sidebar from "@/components/ui/sidebar/sidebar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
-import { decode } from "base64-arraybuffer";
 import {
   BaseDirectory,
   createDir,
-  writeBinaryFile,
-  writeFile,
   readDir,
   copyFile,
   removeFile,
@@ -22,28 +16,17 @@ import {
 // import { appDataDir } from "@tauri-apps/api/path";
 
 import {
-  TextInput,
-  CheckboxButton,
-  CheckboxSlider,
   Dropdown,
   SliderInput,
   ImageDropdownInput,
   MultiSelectDropdown,
   ImageInputOptionsProps,
   Label,
-  ButtonInput,
 } from "@/components/ui/inputs";
 
-import { SettingsManager } from "tauri-settings";
+import { getAppDataDir } from "@/lib/utils";
+
 import { Store } from "tauri-plugin-store-api";
-
-// let store: any;
-// if (typeof window !== "undefined") {
-//   const { Store } = require("tauri-plugin-store-api");
-//   store = new Store(".settings.dat");
-// }
-
-// import dynamic from "next/dynamic";
 
 import { emit, listen } from "@tauri-apps/api/event";
 
@@ -271,10 +254,22 @@ export default function Home() {
   useEffect(() => {
     let store = storeRef.current;
 
+    const defaultCoverOption = {
+      label: "Current Song Cover",
+      image: "/assets/backgrounds/default.png",
+      extension: "png",
+      removeable: false,
+      editeable: false,
+      path: "/assets/backgrounds/default.png",
+      static: true,
+    }; 
+
     const loadCoverOption = async () => {
+      console.time("loadCoverOption");
       const current_song_data_string = await invoke("get_current_song");
       const current_song_data = JSON.parse(current_song_data_string as string);
       const images = current_song_data?.item?.album?.images;
+      console.timeEnd("loadCoverOption");
 
       if (images && images.length > 0) {
         return {
@@ -288,73 +283,89 @@ export default function Home() {
         };
       }
 
-      return {
-        label: "Current Song Cover",
+      return defaultCoverOption; // Fallback if no images are found
+    };
+
+    const staticOptions: Array<ImageInputOptionsProps> = [
+      {
+        label: "Default",
         image: "/assets/backgrounds/default.png",
         extension: "png",
         removeable: false,
         editeable: false,
         path: "/assets/backgrounds/default.png",
         static: true,
-      }; // Fallback if no images are found
-    };
+      },
+      defaultCoverOption
+    ];
+    
 
     const loadBackgroundOptions = async () => {
-      const res = await store.get("hideSubtitles");
+      console.time("loadBackgroundOptions");
+
+      setBackgroundOptions(staticOptions);
+
+      const coverOptionPromise = loadCoverOption();
+
+      // Fetch unrelated data in parallel
+      const [res, appDataDirPath, assetImages] = await Promise.all([
+        store.get("hideSubtitles"),
+        getAppDataDir(),
+        readDir("assets/backgrounds/", { dir: BaseDirectory.AppData, recursive: false }),
+      ]);
+
       setHideSubtitles(res === "true");
 
-      const pathModule = await import("@tauri-apps/api/path");
-      const appDataDirPath = await pathModule.appDataDir();
-
-      const assetImages = await readDir("assets/backgrounds/", {
-        dir: BaseDirectory.AppData,
-        recursive: false,
+      // Prepare background options
+      assetImages.forEach(async (entry) => {
+        try {
+          const entryName = entry.name || "Unnamed Image";
+          const extension = entryName.split(".").pop() || "png";
+    
+          const backgroundOption = {
+            label: entryName.split(".").slice(0, -1).join("."),
+            image:
+              extension === "mp4"
+                ? "assets/backgrounds/fallback.png"
+                : convertFileSrc(`${appDataDirPath}assets\\thumbnails\\${entryName.split(".")[0]}.png`),
+            extension,
+            removeable: true,
+            editeable: true,
+            path: entry.path,
+            static: false,
+          };
+    
+          // Add new option incrementally
+          setBackgroundOptions((prevOptions) => [...prevOptions, backgroundOption]);
+        } catch (error) {
+          console.error(`Failed to load background option for entry: ${entry.path}`, error);
+        }
       });
 
-      const options: Array<ImageInputOptionsProps> = [
-        {
-          label: "Default",
-          image: "/assets/backgrounds/default.png",
-          extension: "png",
-          removeable: false,
-          editeable: false,
-          path: "/assets/backgrounds/default.png",
-          static: true,
-        },
-      ];
+      const coverOption = await coverOptionPromise;
 
-      const coverOption = await loadCoverOption();
-      if (coverOption) {
-        options.push(coverOption);
-      }
+      // setBackgroundOptions((prevOptions) => [...prevOptions, coverOption]);
 
-      const backgroundOptionsPromises = assetImages.map(async (entry) => {
-        const entryName = entry.name || "Unnamed Image"; // Fallback if entry.name is undefined
-        const extension = entryName.split(".").pop() || "png";
-
-        return {
-          label: entryName.split(".").slice(0, -1).join("."),
-          image:
-            extension === "mp4"
-              ? "assets/backgrounds/fallback.png"
-              : convertFileSrc(
-                  `${appDataDirPath}assets\\thumbnails\\${
-                    entryName.split(".")[0]
-                  }.png`
-                ),
-          extension: extension,
-          removeable: true,
-          editeable: true,
-          path: entry.path,
-          static: false,
-        };
+      setBackgroundOptions((prevOptions) => {
+        if (prevOptions.length < 2) {
+          // If the array has less than 2 items, just add the new option
+          return [...prevOptions, coverOption];
+        }
+      
+        return [
+          prevOptions[0],      // Keep the first option as is
+          coverOption,         // Replace the second option
+          ...prevOptions.slice(2), // Keep all options after the second
+        ];
       });
 
-      const backgroundOptions = await Promise.all(backgroundOptionsPromises);
-      setBackgroundOptions([...options, ...backgroundOptions]);
+      console.timeEnd("loadBackgroundOptions");
+
     };
 
     loadBackgroundOptions();
+
+    console.log("use effect triggered for page.tsx");
   }, [setBackgroundOptions, setHideSubtitles]);
 
   return (

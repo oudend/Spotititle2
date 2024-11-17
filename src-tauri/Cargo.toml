@@ -18,11 +18,17 @@ tauri-build = { version = "1.5.3", features = [] }
 [dependencies]
 tauri-plugin-window-state = "0.1.1"
 
+cached = "0.53.1"
+
+image="0.25.1"
+
 wana_kana = "3.0.0"
 
 pinyin = "0.10"
 
 cjk="0.2.4"
+
+discord-rich-presence = "0.2.4"
 
 lazy_static = "1.5.0"
 
